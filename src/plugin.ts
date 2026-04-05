@@ -166,17 +166,21 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
       }
     })
 
-    ;(input.client as any)?.showToast?.({
-      title: `Ocosay v${pluginVersion} Plugin Loaded`,
-      message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
-      variant: 'success'
+    input.client?.tui?.showToast?.({
+      body: {
+        title: `Ocosay v${pluginVersion} Plugin Loaded`,
+        message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
+        variant: 'success'
+      }
     })
   } catch (err) {
     console.error('[Ocosay] initialization failed:', err)
-    ;(input.client as any)?.showToast?.({
-      title: `Ocosay v${pluginVersion} Initialization Failed`,
-      message: err instanceof Error ? err.message : String(err),
-      variant: 'error'
+    input.client?.tui?.showToast?.({
+      body: {
+        title: `Ocosay v${pluginVersion} Initialization Failed`,
+        message: err instanceof Error ? err.message : String(err),
+        variant: 'error'
+      }
     })
   }
 
