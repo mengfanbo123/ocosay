@@ -1,5 +1,5 @@
 {
-  "name": "@mengxy/ocosay",
+  "name": "@mingxy/ocosay",
   "version": "1.0.0",
   "description": "OpenCode TTS 播放插件 - 支持豆包模式边接收边朗读",
   "type": "module",
