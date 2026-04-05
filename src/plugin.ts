@@ -154,28 +154,32 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
 
   const config = loadOrCreateConfig()
 
-  if (input.client?.tui?.showToast) {
-    input.client.tui.showToast({
-      body: {
-        variant: 'success',
-        title: `Ocosay v${pluginVersion} 插件加载成功`,
-        message: `自动朗读模式: ${config.autoRead ? '已开启' : '已关闭'}`
+  try {
+    await initialize({
+      autoRead: config.autoRead,
+      providers: {
+        minimax: {
+          apiKey: config.providers.minimax.apiKey,
+          baseURL: config.providers.minimax.baseURL || undefined,
+          voiceId: config.providers.minimax.voiceId || undefined
+        }
       }
     })
-  } else {
-    console.warn('[Ocosay] showToast not available, skipping notification')
-  }
 
-  await initialize({
-    autoRead: config.autoRead,
-    providers: {
-      minimax: {
-        apiKey: config.providers.minimax.apiKey,
-        baseURL: config.providers.minimax.baseURL || undefined,
-        voiceId: config.providers.minimax.voiceId || undefined
-      }
+    if (input.client?.tui?.showToast) {
+      input.client.tui.showToast({
+        body: {
+          variant: 'success',
+          title: `Ocosay v${pluginVersion} 插件加载成功`,
+          message: `自动朗读模式: ${config.autoRead ? '已开启' : '已关闭'}`
+        }
+      })
+    } else {
+      console.warn('[Ocosay] showToast not available, skipping notification')
     }
-  })
+  } catch (err) {
+    console.error('[Ocosay] initialization failed:', err)
+  }
 
   return {
     tool: {
