@@ -46,8 +46,8 @@ export function generateDefaultConfig(): OcosayConfig {
     providers: {
       minimax: {
         apiKey: '',
-        baseURL: '',
-        voiceId: '',
+        baseURL: 'https://api.minimaxi.com',
+        voiceId: 'female-chengshu',
         model: 'stream',
         ttsModel: 'speech-2.8-hd',
         audioFormat: 'mp3'

@@ -1,0 +1,12 @@
+src/
+tests/
+__mocks__/
+coverage/
+*.test.ts
+*.spec.ts
+tsconfig.json
+jest.config.js
+.gitignore
+.git/
+*.md
+!README.md

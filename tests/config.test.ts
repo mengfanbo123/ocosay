@@ -104,11 +104,11 @@ describe('config.ts', () => {
       expect(config).toHaveProperty('providers.minimax')
     })
 
-    it('should have apiKey and baseURL as empty strings', () => {
+    it('should have apiKey as empty string and baseURL with default value', () => {
       const config = generateDefaultConfig()
       expect(config.providers.minimax.apiKey).toBe('')
-      expect(config.providers.minimax.baseURL).toBe('')
-      expect(config.providers.minimax.voiceId).toBe('')
+      expect(config.providers.minimax.baseURL).toBe('https://api.minimaxi.com')
+      expect(config.providers.minimax.voiceId).toBe('female-chengshu')
     })
 
     it('should have correct default values from DEFAULT_CONFIG', () => {
@@ -192,7 +192,7 @@ describe('config.ts', () => {
       expect(fs.writeFileSync).toHaveBeenCalled()
       expect(fs.chmodSync).toHaveBeenCalledWith(mockConfigPath, 0o600)
       expect(config.providers.minimax.apiKey).toBe('')
-      expect(config.providers.minimax.baseURL).toBe('')
+      expect(config.providers.minimax.baseURL).toBe('https://api.minimaxi.com')
     })
 
     it('should create directory if it does not exist', () => {
@@ -284,7 +284,7 @@ describe('config.ts', () => {
 
       expect(consoleErrorSpy).toHaveBeenCalled()
       expect(config.providers.minimax.apiKey).toBe('')
-      expect(config.providers.minimax.baseURL).toBe('')
+      expect(config.providers.minimax.baseURL).toBe('https://api.minimaxi.com')
 
       consoleErrorSpy.mockRestore()
     })
