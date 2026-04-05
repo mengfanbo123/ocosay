@@ -1,10 +1,15 @@
 {
   "name": "@mingxy/ocosay",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "OpenCode TTS 播放插件 - 支持豆包模式边接收边朗读",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mengfanbo123/ocosay.git"
+  },
+  "homepage": "https://github.com/mengfanbo123/ocosay#readme",
   "exports": {
     ".": {
       "import": "./dist/index.js",
