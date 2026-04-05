@@ -577,6 +577,27 @@ npm test
 npm run watch
 ```
 
+## Changelog
+
+### v1.0.2 (2026-04-05)
+**Bug Fix:**
+- 🐛 修复 OpenCode 加载失败 `Plugin export is not a function`
+  - 根因：OpenCode 插件加载器期望 `{ server: Plugin }` 格式导出
+  - 修复：`export default { server: OcosayPlugin }`
+- 🎵 默认 TTS 模型改为 `speech-2.8-hd`
+
+### v1.0.1 (2026-04-05)
+- 📚 多平台 AudioBackend 架构（6 种后端）
+- 🔌 OpenCode 插件标准集成
+- 📋 完整测试覆盖（304 测试）
+
+### v1.0.0 (2026-04-05)
+- 🎙️ 初始版本
+- 🔊 多 TTS 模型支持
+- 🎭 多种音色选择
+- 🎛️ 播放控制（暂停、恢复、停止）
+- 📡 豆包模式（边接收边朗读）
+
 ## Contributing
 
 欢迎提交 Issue 和 PR！
