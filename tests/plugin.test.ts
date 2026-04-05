@@ -42,9 +42,7 @@ describe('plugin.ts', () => {
       const mockShowToast = jest.fn()
       const mockInput = {
         client: {
-          tui: {
-            showToast: mockShowToast
-          }
+          showToast: mockShowToast
         }
       } as any
 
@@ -53,11 +51,9 @@ describe('plugin.ts', () => {
       await OcosayPlugin(mockInput, {})
 
       expect(mockShowToast).toHaveBeenCalledWith({
-        body: {
-          variant: 'success',
-          title: expect.stringContaining('插件加载成功'),
-          message: expect.stringContaining('自动朗读模式')
-        }
+        variant: 'success',
+        title: expect.stringContaining('Plugin Loaded'),
+        message: expect.stringContaining('Auto-read')
       })
     })
 
@@ -65,9 +61,7 @@ describe('plugin.ts', () => {
       const mockShowToast = jest.fn()
       const mockInput = {
         client: {
-          tui: {
-            showToast: mockShowToast
-          }
+          showToast: mockShowToast
         }
       } as any
 
@@ -76,11 +70,9 @@ describe('plugin.ts', () => {
       await OcosayPlugin(mockInput, {})
 
       expect(mockShowToast).toHaveBeenCalledWith({
-        body: {
-          variant: 'error',
-          title: expect.stringContaining('初始化失败'),
-          message: 'Config invalid'
-        }
+        variant: 'error',
+        title: expect.stringContaining('Initialization Failed'),
+        message: 'Config invalid'
       })
     })
 
@@ -89,9 +81,7 @@ describe('plugin.ts', () => {
       const mockShowToast = jest.fn().mockImplementation(() => callOrder.push('showToast'))
       const mockInput = {
         client: {
-          tui: {
-            showToast: mockShowToast
-          }
+          showToast: mockShowToast
         }
       } as any
 
