@@ -585,6 +585,12 @@ npm run watch
 - 🎵 默认 voiceId 改为 `female-chengshu`（成熟女性音色）
 - 🔧 默认 baseURL: `https://api.minimaxi.com`
 
+### v1.0.5 (2026-04-05)
+**Bug Fix:**
+- 🐛 修复 OpenCode 加载失败 `Plugin export is not a function`
+  - 根因：`export default { server }` 让 module.default 是对象不是函数
+  - 修复：使用 named export `export const server = OcosayPlugin; export default server`
+
 ### v1.0.3 (2026-04-05)
 **Bug Fix:**
 - 🐛 修复 OpenCode 加载失败 `Plugin export is not a function`
