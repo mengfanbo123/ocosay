@@ -234,8 +234,7 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
             })
             initError = null
           } catch (err) {
-            // 使用箭头函数包装，避免 this 上下文丢失
-            const retryToastFn = (...args: any[]) => input.client?.tui?.showToast?.(...args)
+            const retryToastFn = input.client?.tui?.showToast
             if (retryToastFn) {
               retryToastFn({
                 body: {
@@ -254,11 +253,12 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
         (global as any).__opencode_tui_showToast__ = input.client.tui.showToast
       }
 
-      // 延迟 1 秒等待 TUI 初始化
       setTimeout(() => {
-        // 使用箭头函数包装，避免 this 上下文丢失
-        const showToastFn = (...args: any[]) => input.client?.tui?.showToast?.(...args)
-        if (!showToastFn) return
+        const showToastFn = input.client?.tui?.showToast
+        if (!showToastFn) {
+          console.warn('[Ocosay] showToast not available')
+          return
+        }
 
         if (initError) {
           showToastFn({

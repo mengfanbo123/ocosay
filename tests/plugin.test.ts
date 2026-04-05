@@ -131,9 +131,10 @@ describe('plugin.ts', () => {
       // 执行延迟的 setTimeout
       jest.runAllTimers()
 
-      // 由于添加了初始化重试机制，session.created中会检查initError并重试
-      // initialize被调用两次（初始化+重试），showToast在setTimeout后调用
-      expect(callOrder).toEqual(['initialize', 'initialize', 'showToast'])
+      // showToast 被调用两次：
+      // 1. OcosayPlugin 初始化时的 setTimeout（插件加载成功）
+      // 2. session.created 事件中的 setTimeout（插件加载成功）
+      expect(callOrder).toEqual(['initialize', 'initialize', 'showToast', 'showToast'])
     })
 
     it('showToast 不可用时不报错', async () => {
