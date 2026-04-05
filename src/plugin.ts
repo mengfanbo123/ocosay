@@ -2,6 +2,7 @@ import { tool } from '@opencode-ai/plugin'
 import type { Plugin, PluginInput, PluginOptions } from '@opencode-ai/plugin'
 import { handleToolCall } from './index'
 import { initialize, destroy } from './index'
+import { loadOrCreateConfig } from './config'
 
 const pluginName = 'ocosay'
 
@@ -141,11 +142,20 @@ const ttsStreamStatusTool = tool({
 
 const OcosayPlugin: Plugin = async (_input: PluginInput, _options?: PluginOptions) => {
   console.info(`${pluginName}: initializing...`)
-  
+
+  const config = loadOrCreateConfig()
+
   await initialize({
-    autoRead: false
+    autoRead: config.autoRead,
+    providers: {
+      minimax: {
+        apiKey: config.providers.minimax.apiKey,
+        baseURL: config.providers.minimax.baseURL || undefined,
+        voiceId: config.providers.minimax.voiceId || undefined
+      }
+    }
   })
-  
+
   return {
     tool: {
       tts_speak: ttsSpeakTool,
@@ -159,8 +169,10 @@ const OcosayPlugin: Plugin = async (_input: PluginInput, _options?: PluginOption
       tts_stream_stop: ttsStreamStopTool,
       tts_stream_status: ttsStreamStatusTool
     },
-    config: async () => {}
+    config: async () => {
+      return
+    }
   }
 }
 
-export default OcosayPlugin
+export default { server: OcosayPlugin }

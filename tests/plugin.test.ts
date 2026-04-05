@@ -29,7 +29,8 @@ jest.mock('../src/index', () => ({
 }))
 
 import { handleToolCall } from '../src/index'
-import OcosayPlugin from '../src/plugin'
+import pluginExport from '../src/plugin'
+const OcosayPlugin = pluginExport.server
 
 describe('plugin.ts', () => {
   beforeEach(() => {

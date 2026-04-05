@@ -15,7 +15,7 @@ export function generateDefaultConfig(): OcosayConfig {
         baseURL: '',
         voiceId: '',
         model: 'stream',
-        ttsModel: 'speech-02-hd',
+        ttsModel: 'speech-2.8-hd',
         audioFormat: 'mp3'
       }
     }
@@ -137,7 +137,7 @@ export function loadOrCreateConfig(): OcosayConfig {
           baseURL: loaded.providers?.minimax?.baseURL ?? '',
           voiceId: loaded.providers?.minimax?.voiceId ?? '',
           model: loaded.providers?.minimax?.model ?? 'stream',
-          ttsModel: loaded.providers?.minimax?.ttsModel ?? 'speech-02-hd',
+          ttsModel: loaded.providers?.minimax?.ttsModel ?? 'speech-2.8-hd',
           audioFormat: loaded.providers?.minimax?.audioFormat ?? 'mp3'
         }
       }

@@ -38,8 +38,11 @@ export async function initialize(config?: InitializeOptions): Promise<void> {
   if (initialized) {
     return
   }
-  
+
   if (config?.providers?.minimax) {
+    if (!config.providers.minimax.apiKey) {
+      throw new Error('[ocosay] API Key is required. Please set minimax.apiKey in ~/.config/opencode/ocosay.jsonc')
+    }
     const minimaxProvider = new MiniMaxProvider(config.providers.minimax)
     registerProvider('minimax', minimaxProvider)
     await minimaxProvider.initialize()
