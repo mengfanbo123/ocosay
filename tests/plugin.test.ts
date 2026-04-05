@@ -37,6 +37,85 @@ describe('plugin.ts', () => {
     jest.clearAllMocks()
   })
 
+  describe('初始化流程', () => {
+    it('initialize 成功后显示 success toast', async () => {
+      const mockShowToast = jest.fn()
+      const mockInput = {
+        client: {
+          tui: {
+            showToast: mockShowToast
+          }
+        }
+      } as any
+
+      ;(require('../src/index').initialize as jest.Mock).mockResolvedValue(undefined)
+
+      await OcosayPlugin(mockInput, {})
+
+      expect(mockShowToast).toHaveBeenCalledWith({
+        body: {
+          variant: 'success',
+          title: expect.stringContaining('插件加载成功'),
+          message: expect.stringContaining('自动朗读模式')
+        }
+      })
+    })
+
+    it('initialize 失败后显示 error toast', async () => {
+      const mockShowToast = jest.fn()
+      const mockInput = {
+        client: {
+          tui: {
+            showToast: mockShowToast
+          }
+        }
+      } as any
+
+      ;(require('../src/index').initialize as jest.Mock).mockRejectedValue(new Error('Config invalid'))
+
+      await OcosayPlugin(mockInput, {})
+
+      expect(mockShowToast).toHaveBeenCalledWith({
+        body: {
+          variant: 'error',
+          title: expect.stringContaining('初始化失败'),
+          message: 'Config invalid'
+        }
+      })
+    })
+
+    it('initialize 成功后 showToast 在 initialize 之后调用（时序验证）', async () => {
+      const callOrder: string[] = []
+      const mockShowToast = jest.fn().mockImplementation(() => callOrder.push('showToast'))
+      const mockInput = {
+        client: {
+          tui: {
+            showToast: mockShowToast
+          }
+        }
+      } as any
+
+      ;(require('../src/index').initialize as jest.Mock).mockImplementation(() => {
+        callOrder.push('initialize')
+        return Promise.resolve()
+      })
+
+      await OcosayPlugin(mockInput, {})
+
+      expect(callOrder).toEqual(['initialize', 'showToast'])
+    })
+
+    it('showToast 不可用时不报错', async () => {
+      const mockInput = {
+        client: {}
+      } as any
+
+      ;(require('../src/index').initialize as jest.Mock).mockResolvedValue(undefined)
+
+      await expect(OcosayPlugin(mockInput, {})).resolves.toBeDefined()
+    })
+  })
+
   describe('工具定义验证', () => {
     let plugin: any
 

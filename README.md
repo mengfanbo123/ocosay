@@ -581,7 +581,8 @@ npm run watch
 
 ### v1.0.9 (2026-04-05)
 **Bug Fix:**
-- 🐛 修复 showToast 调用静默失败问题（添加空值检查）
+- 🐛 修复 showToast 时序问题（初始化成功后才显示 toast）
+- 🐛 添加初始化失败时 error toast 提示
 
 ### v1.0.8 (2026-04-05)
 **New Features:**
