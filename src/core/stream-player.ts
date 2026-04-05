@@ -5,6 +5,7 @@
 
 import { EventEmitter } from 'events'
 import { spawn, ChildProcess } from 'child_process'
+import fs from 'fs'
 import { createWriteStream, WriteStream } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -311,7 +312,6 @@ export class StreamPlayer extends EventEmitter {
   private deleteTempFile(): void {
     if (this.tempFile) {
       try {
-        const fs = require('fs')
         if (fs.existsSync(this.tempFile)) {
           fs.unlinkSync(this.tempFile)
         }

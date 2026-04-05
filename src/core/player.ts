@@ -5,6 +5,7 @@
 
 import { EventEmitter } from 'events'
 import { spawn, ChildProcess } from 'child_process'
+import fs from 'fs'
 import { createWriteStream } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -69,12 +70,8 @@ export class AudioPlayer extends EventEmitter implements Player {
       this.currentFile = tempFile
 
       if (Buffer.isBuffer(audioData)) {
-        // 同步写入 Buffer
-        const fs = require('fs')
         fs.writeFileSync(tempFile, audioData)
       } else {
-        // Web ReadableStream: 使用 getReader 读取并写入文件
-        const fs = require('fs')
         const writeStream = createWriteStream(tempFile)
         const reader = audioData.getReader()
         
@@ -251,7 +248,6 @@ export class AudioPlayer extends EventEmitter implements Player {
   private cleanup(): void {
     if (this.currentFile) {
       try {
-        const fs = require('fs')
         if (fs.existsSync(this.currentFile)) {
           fs.unlinkSync(this.currentFile)
         }

@@ -5,6 +5,8 @@
 
 import { GlobalConfig, ProviderConfig, OcosayConfig } from './core/types'
 import { TTSError, TTSErrorCode } from './core/types'
+import fs from 'fs'
+import path from 'path'
 
 const DEFAULT_CONFIG: OcosayConfig = {
   enabled: true,
@@ -35,7 +37,6 @@ class ConfigManager {
 
   private loadConfig(): OcosayConfig {
     try {
-      const fs = require('fs')
       if (fs.existsSync(this.configPath)) {
         const content = fs.readFileSync(this.configPath, 'utf-8')
         const parsed = JSON.parse(content)
@@ -51,8 +52,6 @@ class ConfigManager {
 
   saveConfig(): void {
     try {
-      const fs = require('fs')
-      const path = require('path')
       const dir = path.dirname(this.configPath)
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true })
