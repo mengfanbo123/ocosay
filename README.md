@@ -579,7 +579,7 @@ npm run watch
 
 ## Changelog
 
-### v1.0.9 (2026-04-05)
+### v1.0.10 (2026-04-05)
 **Bug Fix:**
 - 🐛 修复 showToast 时序问题（初始化成功后才显示 toast）
 - 🐛 添加初始化失败时 error toast 提示
