@@ -221,6 +221,11 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
         }
       }
 
+      // 将 OpenCode 的 showToast 设置到全局，供 speaker.ts 等模块使用
+      if (input.client?.tui?.showToast) {
+        (global as any).__opencode_tui_showToast__ = input.client.tui.showToast
+      }
+
       // 延迟 1 秒等待 TUI 初始化
       setTimeout(() => {
         // 使用箭头函数包装，避免 this 上下文丢失

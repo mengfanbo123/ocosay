@@ -233,9 +233,6 @@ export function showToast(options: { body: { title: string; message: string; var
   }
 }
 
-// 将 showToast 挂载到全局，供其他模块使用
-;(global as any).__opencode_tui_showToast__ = showToast
-
 export { handleToolCall }
 export const toolNames = [
   'tts_speak',
