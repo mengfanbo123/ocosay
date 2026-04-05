@@ -172,6 +172,34 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
     console.error('[Ocosay] initialization failed:', initError)
   }
 
+  // 将 OpenCode 的 showToast 设置到全局，供 speaker.ts 等模块使用
+  const opencodeShowToast = input.client?.tui?.showToast
+  if (opencodeShowToast) {
+    (global as any).__opencode_tui_showToast__ = opencodeShowToast
+  }
+
+  // 插件初始化完成后立即显示 Toast（延迟 1 秒等待 TUI 渲染）
+  setTimeout(() => {
+    if (!opencodeShowToast) return
+    if (initError) {
+      opencodeShowToast({
+        body: {
+          title: `Ocosay v${pluginVersion} Initialization Failed`,
+          message: 'Initialization failed, please check config',
+          variant: 'error'
+        }
+      })
+    } else {
+      opencodeShowToast({
+        body: {
+          title: `Ocosay v${pluginVersion} Plugin Loaded`,
+          message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
+          variant: 'success'
+        }
+      })
+    }
+  }, 1000)
+
   return {
     tool: {
       tts_speak: ttsSpeakTool,
