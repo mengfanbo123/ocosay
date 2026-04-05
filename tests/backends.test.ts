@@ -8,6 +8,7 @@ import { NaudiodonBackend } from '../src/core/backends/naudiodon-backend'
 import { AfplayBackend } from '../src/core/backends/afplay-backend'
 import { AplayBackend } from '../src/core/backends/aplay-backend'
 import { PowerShellBackend } from '../src/core/backends/powershell-backend'
+import { HowlerBackend } from '../src/core/backends/howler-backend'
 import { createBackend, BackendType, supportsStreaming, getDefaultBackendType } from '../src/core/backends/index'
 import { execFile, spawn, ChildProcess } from 'child_process'
 import { writeFileSync, unlinkSync, existsSync } from 'fs'
@@ -17,6 +18,19 @@ import { join } from 'path'
 // Mock modules
 jest.mock('child_process')
 jest.mock('fs')
+jest.mock('howler', () => ({
+  Howl: jest.fn().mockImplementation(() => ({
+    play: jest.fn(),
+    pause: jest.fn(),
+    stop: jest.fn(),
+    unload: jest.fn(),
+    playing: jest.fn().mockReturnValue(false),
+    volume: jest.fn(),
+    seek: jest.fn().mockReturnValue(0),
+    duration: jest.fn().mockReturnValue(1),
+    on: jest.fn()
+  }))
+}))
 
 const MockExecFile = execFile as jest.MockedFunction<typeof execFile>
 const MockSpawn = spawn as jest.MockedFunction<typeof spawn>
@@ -829,3 +843,191 @@ describe('Backend Index (index.ts)', () => {
     })
   })
 })
+
+describe('HowlerBackend', () => {
+  let mockEvents: any
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    jest.resetModules()
+  })
+
+  describe('constructor', () => {
+    it('should initialize with default options', () => {
+      const backend = new HowlerBackend()
+      expect(backend.name).toBe('howler')
+      expect(backend.supportsStreaming).toBe(false)
+    })
+
+    it('should accept events callback', () => {
+      const events = {
+        onStart: jest.fn(),
+        onEnd: jest.fn(),
+        onError: jest.fn(),
+        onPause: jest.fn(),
+        onResume: jest.fn(),
+        onStop: jest.fn(),
+        onProgress: jest.fn()
+      }
+      const backend = new HowlerBackend({ events })
+      expect(backend).toBeDefined()
+    })
+
+    it('should accept volume option', () => {
+      const backend = new HowlerBackend({ volume: 0.5 })
+      expect(backend).toBeDefined()
+    })
+
+    it('should accept format option', () => {
+      const backend = new HowlerBackend({ format: 'wav' })
+      expect(backend).toBeDefined()
+    })
+  })
+
+  describe('supportsStreaming', () => {
+    it('should be false (Howler.js does not support true streaming)', () => {
+      const backend = new HowlerBackend()
+      expect(backend.supportsStreaming).toBe(false)
+    })
+  })
+
+  describe('start()', () => {
+    it('should create Howl instance', () => {
+      const backend = new HowlerBackend()
+      backend.start('/path/to/file.mp3')
+    })
+
+    it('should stop previous playback if already started', () => {
+      const backend = new HowlerBackend()
+      backend.start('/path/to/file1.mp3')
+      backend.start('/path/to/file2.mp3')
+    })
+  })
+
+  describe('write()', () => {
+    it('should buffer chunks and emit progress', () => {
+      const onProgress = jest.fn()
+      const backend = new HowlerBackend({ events: { onProgress } })
+      backend.start('/path/to/file.mp3')
+      const chunk = Buffer.from([1, 2, 3, 4, 5])
+      backend.write(chunk)
+      expect(onProgress).toHaveBeenCalledWith(5)
+    })
+
+    it('should do nothing when stopped', () => {
+      const onProgress = jest.fn()
+      const backend = new HowlerBackend({ events: { onProgress } })
+      backend.start('/path/to/file.mp3')
+      backend.stop()
+      backend.write(Buffer.from([1, 2, 3]))
+      expect(onProgress).not.toHaveBeenCalled()
+    })
+
+    it('should do nothing when not started', () => {
+      const backend = new HowlerBackend()
+      backend.write(Buffer.from([1, 2, 3]))
+      // No error should be thrown
+    })
+  })
+
+  describe('pause()', () => {
+    it('should not throw when pausing', () => {
+      const backend = new HowlerBackend()
+      backend.start('/path/to/file.mp3')
+      backend.pause()
+    })
+
+    it('should do nothing when not started', () => {
+      const backend = new HowlerBackend()
+      backend.pause()
+    })
+  })
+
+  describe('resume()', () => {
+    it('should not throw when resuming', () => {
+      const backend = new HowlerBackend()
+      backend.start('/path/to/file.mp3')
+      backend.pause()
+      backend.resume()
+    })
+
+    it('should do nothing when not paused', () => {
+      const backend = new HowlerBackend()
+      backend.resume()
+    })
+  })
+
+  describe('stop()', () => {
+    it('should stop playback and emit onStop', () => {
+      const onStop = jest.fn()
+      const backend = new HowlerBackend({ events: { onStop } })
+      backend.start('/path/to/file.mp3')
+      backend.stop()
+      expect(onStop).toHaveBeenCalled()
+    })
+
+    it('should be callable multiple times', () => {
+      const backend = new HowlerBackend()
+      backend.stop()
+      backend.stop()
+      // Should not throw
+    })
+  })
+
+  describe('getCurrentTime()', () => {
+    it('should return current playback time', () => {
+      const backend = new HowlerBackend()
+      backend.start('/path/to/file.mp3')
+      const time = backend.getCurrentTime()
+      expect(typeof time).toBe('number')
+    })
+
+    it('should return undefined when not started', () => {
+      const backend = new HowlerBackend()
+      const time = backend.getCurrentTime()
+      expect(time).toBeUndefined()
+    })
+  })
+
+  describe('getDuration()', () => {
+    it('should return duration when started', () => {
+      const backend = new HowlerBackend()
+      backend.start('/path/to/file.mp3')
+      const duration = backend.getDuration()
+      expect(typeof duration).toBe('number')
+    })
+
+    it('should return undefined when not started', () => {
+      const backend = new HowlerBackend()
+      const duration = backend.getDuration()
+      expect(duration).toBeUndefined()
+    })
+  })
+
+  describe('setVolume()', () => {
+    it('should set volume', () => {
+      const backend = new HowlerBackend()
+      backend.start('/path/to/file.mp3')
+      backend.setVolume(0.5)
+      // Should not throw
+    })
+
+    it('should clamp volume to valid range', () => {
+      const backend = new HowlerBackend()
+      backend.start('/path/to/file.mp3')
+      backend.setVolume(1.5)
+      backend.setVolume(-0.5)
+      // Should clamp and not throw
+    })
+  })
+
+  describe('destroy()', () => {
+    it('should call stop()', () => {
+      const backend = new HowlerBackend()
+      const stopSpy = jest.spyOn(backend, 'stop')
+      backend.destroy()
+      expect(stopSpy).toHaveBeenCalled()
+    })
+  })
+})
+

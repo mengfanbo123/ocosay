@@ -8,7 +8,7 @@ import { AudioBackend, AudioBackendEvents, BackendOptions } from './base'
 
 export class HowlerBackend implements AudioBackend {
   readonly name = 'howler'
-  readonly supportsStreaming = true  // 支持流式播放
+  readonly supportsStreaming = false  // Howler.js 不支持真正的流式播放
 
   private howl: Howl | null = null
   private events?: AudioBackendEvents

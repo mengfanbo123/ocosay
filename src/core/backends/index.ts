@@ -17,6 +17,7 @@ import { NaudiodonBackend } from './naudiodon-backend'
 import { AfplayBackend } from './afplay-backend'
 import { AplayBackend } from './aplay-backend'
 import { PowerShellBackend } from './powershell-backend'
+import { HowlerBackend } from './howler-backend'
 
 /**
  * 后端类型枚举
@@ -26,6 +27,7 @@ export enum BackendType {
   AFPLAY = 'afplay',
   APLAY = 'aplay',
   POWERSHELL = 'powershell',
+  HOWLER = 'howler',
   AUTO = 'auto'
 }
 
@@ -109,6 +111,8 @@ function createBackendByType(type: BackendType, options: BackendOptions): AudioB
       return new AplayBackend(options)
     case BackendType.POWERSHELL:
       return new PowerShellBackend(options)
+    case BackendType.HOWLER:
+      return new HowlerBackend(options)
     default:
       throw new Error(`Unknown backend type: ${type}`)
   }
