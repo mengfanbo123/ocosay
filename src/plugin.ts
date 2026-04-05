@@ -189,30 +189,75 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
       if (event.type !== 'session.created') return
       if (event.properties?.info?.parentID) return
 
-      const showToastFn = input.client?.tui?.showToast
-      if (!showToastFn) return
-
-      try {
-        if (initError) {
-          await showToastFn({
-            body: {
-              title: `Ocosay v${pluginVersion} Initialization Failed`,
-              message: initError.message,
-              variant: 'error'
+      // 初始化重试机制
+      if (initError) {
+        const retryConfig = loadOrCreateConfig()
+        if (retryConfig.providers.minimax.apiKey) {
+          try {
+            await initialize({
+              autoRead: retryConfig.autoRead,
+              providers: {
+                minimax: {
+                  apiKey: retryConfig.providers.minimax.apiKey,
+                  baseURL: retryConfig.providers.minimax.baseURL || undefined,
+                  voiceId: retryConfig.providers.minimax.voiceId || undefined
+                }
+              }
+            })
+            initError = null
+          } catch (err) {
+            // 仍然失败，保持 initError 并显示 Toast
+            const retryToastFn = input.client?.tui?.showToast
+            if (retryToastFn) {
+              try {
+                retryToastFn({
+                  body: {
+                    title: `Ocosay v${pluginVersion} Initialization Failed`,
+                    message: 'Initialization failed, please check config',
+                    variant: 'error'
+                  }
+                })
+              } catch (toastErr: any) {
+                console.warn('[Ocosay] showToast failed:', toastErr)
+              }
             }
-          })
-        } else {
-          await showToastFn({
-            body: {
-              title: `Ocosay v${pluginVersion} Plugin Loaded`,
-              message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
-              variant: 'success'
-            }
-          })
+          }
         }
-      } catch (err) {
-        console.warn('[Ocosay] showToast failed:', err)
       }
+
+      // 延迟 1 秒等待 TUI 初始化
+      setTimeout(() => {
+        const showToastFn = input.client?.tui?.showToast
+        if (!showToastFn) {
+          console.warn('[Ocosay] showToast not available')
+          return
+        }
+        if (initError) {
+          try {
+            showToastFn({
+              body: {
+                title: `Ocosay v${pluginVersion} Initialization Failed`,
+                message: 'Initialization failed, please check config',
+                variant: 'error'
+              }
+            })
+          } catch (err: any) {
+            console.warn('[Ocosay] showToast failed:', err)
+          }
+        } else {
+          try {
+            showToastFn({
+              body: {
+                title: `Ocosay v${pluginVersion} Plugin Loaded`,
+                message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
+                variant: 'success'
+              }
+            })
+          } catch (err: any) {
+            console.warn('[Ocosay] showToast failed:', err)
+          }
+        }
+      }, 1000)
     },
     config: async () => {
       return

@@ -38,6 +38,14 @@ describe('plugin.ts', () => {
   })
 
   describe('初始化流程', () => {
+    beforeEach(() => {
+      jest.useFakeTimers()
+    })
+
+    afterEach(() => {
+      jest.useRealTimers()
+    })
+
     it('initialize 成功后 session.created 时显示 success toast', async () => {
       const mockShowToast = jest.fn()
       const mockInput = {
@@ -54,6 +62,9 @@ describe('plugin.ts', () => {
       
       // 触发 session.created 事件
       await result.event?.({ event: { type: 'session.created', properties: { info: {} } } as any })
+
+      // 执行延迟的 setTimeout
+      jest.runAllTimers()
 
       expect(mockShowToast).toHaveBeenCalledWith({
         body: {
@@ -81,11 +92,14 @@ describe('plugin.ts', () => {
       // 触发 session.created 事件
       await result.event?.({ event: { type: 'session.created', properties: { info: {} } } as any })
 
+      // 执行延迟的 setTimeout
+      jest.runAllTimers()
+
       expect(mockShowToast).toHaveBeenCalledWith({
         body: {
           variant: 'error',
           title: expect.stringContaining('Initialization Failed'),
-          message: 'Config invalid'
+          message: 'Initialization failed, please check config'
         }
       })
     })
@@ -101,9 +115,12 @@ describe('plugin.ts', () => {
         }
       } as any
 
-      ;(require('../src/index').initialize as jest.Mock).mockImplementation(() => {
+      const initializeMock = require('../src/index').initialize as jest.Mock
+      // 完全重置mock，然后设置返回resolved Promise的实现
+      initializeMock.mockReset()
+      initializeMock.mockImplementation(() => {
         callOrder.push('initialize')
-        return Promise.resolve()
+        return Promise.resolve(undefined)
       })
 
       const result = await OcosayPlugin(mockInput, {})
@@ -111,7 +128,12 @@ describe('plugin.ts', () => {
       // 触发 session.created 事件
       await result.event?.({ event: { type: 'session.created', properties: { info: {} } } as any })
 
-      expect(callOrder).toEqual(['initialize', 'showToast'])
+      // 执行延迟的 setTimeout
+      jest.runAllTimers()
+
+      // 由于添加了初始化重试机制，session.created中会检查initError并重试
+      // initialize被调用两次（初始化+重试），showToast在setTimeout后调用
+      expect(callOrder).toEqual(['initialize', 'initialize', 'showToast'])
     })
 
     it('showToast 不可用时不报错', async () => {

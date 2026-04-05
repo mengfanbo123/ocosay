@@ -44,6 +44,22 @@ export class Speaker extends EventEmitter {
       onEnd: () => {
         this.isSpeaking = false
         this.emit('end', this.currentText)
+
+        // 显示播放成功 Toast
+        const showToastFn = (global as any).__opencode_tui_showToast__
+        if (showToastFn) {
+          try {
+            showToastFn({
+              body: {
+                title: '🎙️ TTS',
+                message: 'Playback completed',
+                variant: 'success'
+              }
+            })
+          } catch (err) {
+            // Toast 失败不影响流程
+          }
+        }
       },
       onError: (error) => this.emit('error', error),
       onPause: () => {
@@ -90,6 +106,22 @@ export class Speaker extends EventEmitter {
     this.isSpeaking = true
     this.currentText = text
     
+    // 显示播放开始 Toast
+    const showToastFn = (global as any).__opencode_tui_showToast__
+    if (showToastFn) {
+      try {
+        showToastFn({
+          body: {
+            title: '🎙️ TTS',
+            message: `Playing: ${text.substring(0, 30)}...`,
+            variant: 'info'
+          }
+        })
+      } catch (err) {
+        // Toast 失败不影响播放
+      }
+    }
+    
     try {
       // 获取 provider
       const providerName = options.provider || this.options.defaultProvider || 'minimax'
@@ -120,6 +152,23 @@ export class Speaker extends EventEmitter {
       
     } catch (error) {
       this.isSpeaking = false
+
+      // 显示播放失败 Toast
+      const showToastFn = (global as any).__opencode_tui_showToast__
+      if (showToastFn) {
+        try {
+          showToastFn({
+            body: {
+              title: '🎙️ TTS',
+              message: 'Playback failed, please check config',
+              variant: 'error'
+            }
+          })
+        } catch (err) {
+          // Toast 失败不影响流程
+        }
+      }
+
       if (error instanceof TTSError) {
         this.emit('error', error)
         throw error

@@ -579,6 +579,17 @@ npm run watch
 
 ## Changelog
 
+### v1.0.13 (2026-04-06)
+**New Features:**
+- ✨ Toast通知：插件加载成功/失败显示Toast (success/error)
+- ✨ Toast通知：语音播放成功/失败显示Toast (success/error)
+- 🔄 初始化重试机制：session创建时自动重试初始化
+- 🌐 所有Toast内容改为英文
+- 🔒 错误信息脱敏，不暴露内部细节
+
+**Bug Fix:**
+- 🐛 修复showToast调用方式（添加延迟+防御性检查）
+
 ### v1.0.10 (2026-04-05)
 **Bug Fix:**
 - 🐛 修复 showToast 时序问题（初始化成功后才显示 toast）

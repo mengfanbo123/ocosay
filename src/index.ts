@@ -221,6 +221,21 @@ export async function destroy(): Promise<void> {
   autoReadEnabled = false
 }
 
+// 导出 showToast 函数到全局，供 Speaker.play() 使用
+export function showToast(options: { body: { title: string; message: string; variant: 'success' | 'error' | 'info' } }): void {
+  const showToastFn = (global as any).__opencode_tui_showToast__
+  if (showToastFn) {
+    try {
+      showToastFn(options)
+    } catch (err) {
+      console.warn('[Ocosay] showToast failed:', err)
+    }
+  }
+}
+
+// 将 showToast 挂载到全局，供其他模块使用
+;(global as any).__opencode_tui_showToast__ = showToast
+
 export { handleToolCall }
 export const toolNames = [
   'tts_speak',
