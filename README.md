@@ -579,6 +579,10 @@ npm run watch
 
 ## Changelog
 
+### v1.0.9 (2026-04-05)
+**Bug Fix:**
+- 🐛 修复 showToast 调用静默失败问题（添加空值检查）
+
 ### v1.0.8 (2026-04-05)
 **New Features:**
 - ✨ 新增 OpenCode 启动成功弹窗，显示插件版本号和 autoRead 模式状态
