@@ -149,6 +149,8 @@ const ttsStreamStatusTool = tool({
   }
 })
 
+let initError: Error | null = null
+
 const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions) => {
   console.info(`${pluginName}: initializing...`)
 
@@ -165,23 +167,9 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
         }
       }
     })
-
-    input.client?.tui?.showToast?.({
-      body: {
-        title: `Ocosay v${pluginVersion} Plugin Loaded`,
-        message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
-        variant: 'success'
-      }
-    })
   } catch (err) {
-    console.error('[Ocosay] initialization failed:', err)
-    input.client?.tui?.showToast?.({
-      body: {
-        title: `Ocosay v${pluginVersion} Initialization Failed`,
-        message: err instanceof Error ? err.message : String(err),
-        variant: 'error'
-      }
-    })
+    initError = err instanceof Error ? err : new Error(String(err))
+    console.error('[Ocosay] initialization failed:', initError)
   }
 
   return {
@@ -196,6 +184,35 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
       tts_stream_speak: ttsStreamSpeakTool,
       tts_stream_stop: ttsStreamStopTool,
       tts_stream_status: ttsStreamStatusTool
+    },
+    event: async ({ event }) => {
+      if (event.type !== 'session.created') return
+      if (event.properties?.info?.parentID) return
+
+      const showToastFn = input.client?.tui?.showToast
+      if (!showToastFn) return
+
+      try {
+        if (initError) {
+          await showToastFn({
+            body: {
+              title: `Ocosay v${pluginVersion} Initialization Failed`,
+              message: initError.message,
+              variant: 'error'
+            }
+          })
+        } else {
+          await showToastFn({
+            body: {
+              title: `Ocosay v${pluginVersion} Plugin Loaded`,
+              message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
+              variant: 'success'
+            }
+          })
+        }
+      } catch (err) {
+        console.warn('[Ocosay] showToast failed:', err)
+      }
     },
     config: async () => {
       return

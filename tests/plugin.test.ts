@@ -38,7 +38,7 @@ describe('plugin.ts', () => {
   })
 
   describe('初始化流程', () => {
-    it('initialize 成功后显示 success toast', async () => {
+    it('initialize 成功后 session.created 时显示 success toast', async () => {
       const mockShowToast = jest.fn()
       const mockInput = {
         client: {
@@ -50,7 +50,10 @@ describe('plugin.ts', () => {
 
       ;(require('../src/index').initialize as jest.Mock).mockResolvedValue(undefined)
 
-      await OcosayPlugin(mockInput, {})
+      const result = await OcosayPlugin(mockInput, {})
+      
+      // 触发 session.created 事件
+      await result.event?.({ event: { type: 'session.created', properties: { info: {} } } as any })
 
       expect(mockShowToast).toHaveBeenCalledWith({
         body: {
@@ -61,7 +64,7 @@ describe('plugin.ts', () => {
       })
     })
 
-    it('initialize 失败后显示 error toast', async () => {
+    it('initialize 失败后 session.created 时显示 error toast', async () => {
       const mockShowToast = jest.fn()
       const mockInput = {
         client: {
@@ -73,7 +76,10 @@ describe('plugin.ts', () => {
 
       ;(require('../src/index').initialize as jest.Mock).mockRejectedValue(new Error('Config invalid'))
 
-      await OcosayPlugin(mockInput, {})
+      const result = await OcosayPlugin(mockInput, {})
+      
+      // 触发 session.created 事件
+      await result.event?.({ event: { type: 'session.created', properties: { info: {} } } as any })
 
       expect(mockShowToast).toHaveBeenCalledWith({
         body: {
@@ -84,7 +90,7 @@ describe('plugin.ts', () => {
       })
     })
 
-    it('initialize 成功后 showToast 在 initialize 之后调用（时序验证）', async () => {
+    it('showToast 在 session.created 事件时调用（时序验证）', async () => {
       const callOrder: string[] = []
       const mockShowToast = jest.fn().mockImplementation(() => callOrder.push('showToast'))
       const mockInput = {
@@ -100,7 +106,10 @@ describe('plugin.ts', () => {
         return Promise.resolve()
       })
 
-      await OcosayPlugin(mockInput, {})
+      const result = await OcosayPlugin(mockInput, {})
+      
+      // 触发 session.created 事件
+      await result.event?.({ event: { type: 'session.created', properties: { info: {} } } as any })
 
       expect(callOrder).toEqual(['initialize', 'showToast'])
     })
