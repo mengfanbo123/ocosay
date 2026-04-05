@@ -175,4 +175,5 @@ const OcosayPlugin: Plugin = async (_input: PluginInput, _options?: PluginOption
   }
 }
 
-export default { server: OcosayPlugin }
+export const server = OcosayPlugin
+export default server
