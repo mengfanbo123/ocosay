@@ -4,12 +4,16 @@ import { handleToolCall } from './index'
 import { initialize, destroy } from './index'
 import { loadOrCreateConfig } from './config'
 import { readFileSync } from 'fs'
-import { join } from 'path'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 const pluginName = 'ocosay'
 let pluginVersion = '0.0.0'
 try {
-  const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8'))
+  const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
   pluginVersion = pkg.version || '0.0.0'
 } catch {
   // 版本号读取失败不影响插件加载
@@ -179,11 +183,11 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
   }
 
   // 插件初始化完成后立即显示 Toast（延迟 1 秒等待 TUI 渲染）
-  setTimeout(() => {
+  setTimeout(async () => {
     if (!opencodeShowToast) return
     if (initError) {
       console.info(`[Ocosay] Ocosay v${pluginVersion} Initialization Failed: Initialization failed, please check config`)
-      opencodeShowToast({
+      await opencodeShowToast({
         body: {
           title: `Ocosay v${pluginVersion} Initialization Failed`,
           message: 'Initialization failed, please check config',
@@ -192,7 +196,7 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
       })
     } else {
       console.info(`[Ocosay] Ocosay v${pluginVersion} Plugin Loaded: Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`)
-      opencodeShowToast({
+      await opencodeShowToast({
         body: {
           title: `Ocosay v${pluginVersion} Plugin Loaded`,
           message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
@@ -256,7 +260,7 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
         (global as any).__opencode_tui_showToast__ = input.client.tui.showToast
       }
 
-      setTimeout(() => {
+      setTimeout(async () => {
         const showToastFn = input.client?.tui?.showToast
         if (!showToastFn) {
           console.warn('[Ocosay] showToast not available')
@@ -265,7 +269,7 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
 
         if (initError) {
           console.info(`[Ocosay] Ocosay v${pluginVersion} Initialization Failed: Initialization failed, please check config`)
-          showToastFn({
+          await showToastFn({
             body: {
               title: `Ocosay v${pluginVersion} Initialization Failed`,
               message: 'Initialization failed, please check config',
@@ -274,7 +278,7 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
           })
         } else {
           console.info(`[Ocosay] Ocosay v${pluginVersion} Plugin Loaded: Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`)
-          showToastFn({
+          await showToastFn({
             body: {
               title: `Ocosay v${pluginVersion} Plugin Loaded`,
               message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,

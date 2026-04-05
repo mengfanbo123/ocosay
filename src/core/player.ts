@@ -4,12 +4,13 @@
  */
 
 import { EventEmitter } from 'events'
-import { spawn, ChildProcess } from 'child_process'
 import fs from 'fs'
 import { createWriteStream } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { TTSError, TTSErrorCode } from './types'
+import { createBackend, BackendType } from './backends'
+import type { AudioBackend } from './backends/base'
 
 /**
  * Player Events - 播放事件回调接口
@@ -43,11 +44,47 @@ export interface Player {
 export class AudioPlayer extends EventEmitter implements Player {
   private _playing = false
   private _paused = false
-  private currentProcess?: ChildProcess
+  private backend: AudioBackend
   private currentFile?: string
 
   constructor(protected events?: PlayerEvents) {
     super()
+    this.backend = createBackend(BackendType.AUTO, {
+      events: {
+        onStart: () => {
+          this.events?.onStart?.()
+          this.emit('start')
+        },
+        onEnd: () => {
+          this._playing = false
+          this.events?.onEnd?.()
+          this.emit('end')
+          this.cleanup()
+        },
+        onError: (error: Error) => {
+          this._playing = false
+          const ttsError = new TTSError(
+            error.message || 'Playback failed',
+            TTSErrorCode.PLAYER_ERROR,
+            'player'
+          )
+          this.events?.onError?.(ttsError)
+          this.emit('error', ttsError)
+        },
+        onPause: () => {
+          this.events?.onPause?.()
+          this.emit('pause')
+        },
+        onResume: () => {
+          this.events?.onResume?.()
+          this.emit('resume')
+        },
+        onStop: () => {
+          this.events?.onStop?.()
+          this.emit('stop')
+        }
+      }
+    })
   }
 
   /**
@@ -124,108 +161,31 @@ export class AudioPlayer extends EventEmitter implements Player {
 
   /**
    * 播放音频文件
-   * 优先使用 afplay (macOS), aplay (Linux), 否则用 PowerShell (Windows)
+   * 使用 AudioBackend 统一后端播放
    */
-  private playFile(filePath: string, format: string): Promise<void> {
-    const platform = process.platform
-
-    return new Promise((resolve, reject) => {
-      let command: string
-      let args: string[]
-
-      if (platform === 'darwin') {
-        // macOS
-        command = 'afplay'
-        args = [filePath]
-      } else if (platform === 'linux') {
-        // Linux
-        command = 'aplay'
-        args = [filePath]
-      } else {
-        // Windows 或其他
-        command = 'powershell'
-        args = ['-c', `(New-Object System.Media.SoundPlayer('${filePath.replace(/\\/g, '\\\\')}')).PlaySync()`]
-      }
-
-      this.currentProcess = spawn(command, args, {
-        stdio: 'ignore',
-        detached: false
-      })
-
-      this.currentProcess.on('exit', (code: number | null, signal: string | null) => {
-        // 如果是被信号终止（如 SIGTERM），不当作错误
-        if (signal === 'SIGTERM' || signal === 'SIGINT') {
-          resolve()
-        } else if (code === 0) {
-          resolve()
-        } else {
-          reject(new Error(`Player exited with code ${code}`))
-        }
-      })
-
-      this.currentProcess.on('error', (error: Error) => {
-        reject(error)
-      })
+  private playFile(filePath: string, _format: string): Promise<void> {
+    return new Promise((_resolve, _reject) => {
+      this.backend.start(filePath)
     })
   }
 
-  /**
-   * 暂停播放
-   * 注意: 目前通过 SIGSTOP 实现，真正的 pause 需要支持暂停的音频库
-   */
   pause(): void {
     if (!this._playing || this._paused) return
-
-    if (this.currentProcess) {
-      try {
-        this.currentProcess.kill('SIGSTOP')
-        this._paused = true
-        this.events?.onPause?.()
-        this.emit('pause')
-      } catch (e) {
-        // 如果 kill 失败，忽略
-      }
-    }
+    this.backend.pause()
+    this._paused = true
   }
 
-  /**
-   * 恢复播放
-   */
   resume(): void {
     if (!this._playing || !this._paused) return
-
-    if (this.currentProcess) {
-      try {
-        this.currentProcess.kill('SIGCONT')
-        this._paused = false
-        this.events?.onResume?.()
-        this.emit('resume')
-      } catch (e) {
-        // 如果 kill 失败，忽略
-      }
-    }
+    this.backend.resume()
+    this._paused = false
   }
 
-  /**
-   * 停止播放
-   */
   async stop(): Promise<void> {
     this._playing = false
     this._paused = false
-
-    if (this.currentProcess) {
-      try {
-        this.currentProcess.kill('SIGTERM')
-      } catch (e) {
-        // 忽略错误
-      }
-      this.currentProcess = undefined
-    }
-
+    this.backend.stop()
     this.cleanup()
-
-    this.events?.onStop?.()
-    this.emit('stop')
   }
 
   /**

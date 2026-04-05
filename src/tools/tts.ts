@@ -14,10 +14,21 @@ import {
   getStreamPlayer 
 } from '../index'
 
-/**
- * OpenCode TTS 工具定义
- * 用于 OpenCode Plugin 注册
- */
+function extractTextArg(args: unknown): string | undefined {
+  if (!args || typeof args !== 'object') {
+    return undefined
+  }
+  const argObj = args as Record<string, unknown>
+  const text = argObj.text
+  if (typeof text === 'string' && text.trim().length > 0) {
+    return text
+  }
+  if (text !== undefined) {
+    console.warn('[tts] text arg is not a valid string, type:', typeof text, 'value:', String(text).substring(0, 100))
+  }
+  return undefined
+}
+
 export const ttsTools = [
   {
     name: 'tts_speak',
@@ -173,24 +184,27 @@ export async function handleToolCall(
         resume()
         return { success: true, message: 'Resumed' }
       
-      case 'tts_list_voices':
+      case 'tts_list_voices': {
         const voices = await listVoices(args?.provider as string | undefined)
         return { success: true, voices }
+      }
       
-      case 'tts_list_providers':
+      case 'tts_list_providers': {
         const speaker = getDefaultSpeaker()
         const providers = speaker.getProviders()
         return { success: true, providers }
+      }
       
-      case 'tts_status':
+      case 'tts_status': {
         const s = getDefaultSpeaker()
         return {
           success: true,
           isPlaying: s.isPlaying(),
           isPaused: s.isPausedState()
         }
+      }
       
-      case 'tts_stream_speak':
+      case 'tts_stream_speak': {
         if (!isAutoReadEnabled()) {
           throw new TTSError(
             'Stream mode is not enabled. autoRead must be enabled in configuration to use tts_stream_speak.',
@@ -209,12 +223,10 @@ export async function handleToolCall(
         const synthesizer = getStreamingSynthesizer()
         if (streamReader && synthesizer) {
           streamReader.start()
-          // 确保 args.text 是字符串类型才调用 synthesize
-          if (args?.text !== undefined && typeof args.text === 'string') {
-            console.log('[tts_stream_speak] synthesizing text:', args.text.substring(0, 50) + '...')
-            synthesizer.synthesize(args.text)
-          } else if (args?.text !== undefined) {
-            console.log('[tts_stream_speak] args.text is not a string, type:', typeof args.text, 'value:', args.text)
+          const textArg = extractTextArg(args)
+          if (textArg && typeof textArg === 'string' && textArg.trim().length > 0) {
+            console.log('[tts_stream_speak] synthesizing text:', textArg.substring(0, 50) + '...')
+            synthesizer.synthesize(textArg)
           }
           return { success: true, message: 'Stream speak started' }
         }
@@ -223,8 +235,9 @@ export async function handleToolCall(
           TTSErrorCode.UNKNOWN,
           'tts_stream'
         )
+      }
       
-      case 'tts_stream_stop':
+      case 'tts_stream_stop': {
         if (!isStreamEnabled()) {
           throw new TTSError(
             'Stream mode is not enabled. Please enable autoRead in configuration.',
@@ -242,6 +255,7 @@ export async function handleToolCall(
           TTSErrorCode.UNKNOWN,
           'tts_stream'
         )
+      }
       
       case 'tts_stream_status':
         if (!isStreamEnabled()) {

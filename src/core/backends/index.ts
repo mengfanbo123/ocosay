@@ -10,6 +10,7 @@ export { NaudiodonBackend } from './naudiodon-backend'
 export { AfplayBackend } from './afplay-backend'
 export { AplayBackend } from './aplay-backend'
 export { PowerShellBackend } from './powershell-backend'
+export { HowlerBackend } from './howler-backend'
 
 import { AudioBackend, BackendOptions } from './base'
 import { NaudiodonBackend } from './naudiodon-backend'
