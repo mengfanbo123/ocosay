@@ -2,7 +2,7 @@
 
 > 🎙️ 让 AI 开口说话 — 支持豆包模式边接收边朗读的 TTS 插件
 
-[![npm version](https://img.shields.io/npm/v/@mengxy/ocosay.svg)](https://www.npmjs.com/package/@mengxy/ocosay)
+[![npm version](https://img.shields.io/npm/v/@mingxy/ocosay.svg)](https://www.npmjs.com/package/@mingxy/ocosay)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## Why This Exists
@@ -37,13 +37,13 @@
 ### 方式一：ocx 安装（推荐）
 
 ```bash
-ocx install @mengxy/ocosay
+ocx install @mingxy/ocosay
 ```
 
 ### 方式二：手动配置
 
 ```bash
-npm install @mengxy/ocosay
+npm install @mingxy/ocosay
 ```
 
 在 OpenCode 配置文件中添加：
@@ -51,7 +51,7 @@ npm install @mengxy/ocosay
 ```json
 {
   "plugins": [
-    "@mengxy/ocosay"
+    "@mingxy/ocosay"
   ],
   "minimax": {
     "apiKey": "your-api-key",
