@@ -206,20 +206,16 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
             })
             initError = null
           } catch (err) {
-            // 仍然失败，保持 initError 并显示 Toast
-            const retryToastFn = input.client?.tui?.showToast
+            // 使用箭头函数包装，避免 this 上下文丢失
+            const retryToastFn = (...args: any[]) => input.client?.tui?.showToast?.(...args)
             if (retryToastFn) {
-              try {
-                retryToastFn({
-                  body: {
-                    title: `Ocosay v${pluginVersion} Initialization Failed`,
-                    message: 'Initialization failed, please check config',
-                    variant: 'error'
-                  }
-                })
-              } catch (toastErr: any) {
-                console.warn('[Ocosay] showToast failed:', toastErr)
-              }
+              retryToastFn({
+                body: {
+                  title: `Ocosay v${pluginVersion} Initialization Failed`,
+                  message: 'Initialization failed, please check config',
+                  variant: 'error'
+                }
+              })
             }
           }
         }
@@ -227,35 +223,26 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
 
       // 延迟 1 秒等待 TUI 初始化
       setTimeout(() => {
-        const showToastFn = input.client?.tui?.showToast
-        if (!showToastFn) {
-          console.warn('[Ocosay] showToast not available')
-          return
-        }
+        // 使用箭头函数包装，避免 this 上下文丢失
+        const showToastFn = (...args: any[]) => input.client?.tui?.showToast?.(...args)
+        if (!showToastFn) return
+
         if (initError) {
-          try {
-            showToastFn({
-              body: {
-                title: `Ocosay v${pluginVersion} Initialization Failed`,
-                message: 'Initialization failed, please check config',
-                variant: 'error'
-              }
-            })
-          } catch (err: any) {
-            console.warn('[Ocosay] showToast failed:', err)
-          }
+          showToastFn({
+            body: {
+              title: `Ocosay v${pluginVersion} Initialization Failed`,
+              message: 'Initialization failed, please check config',
+              variant: 'error'
+            }
+          })
         } else {
-          try {
-            showToastFn({
-              body: {
-                title: `Ocosay v${pluginVersion} Plugin Loaded`,
-                message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
-                variant: 'success'
-              }
-            })
-          } catch (err: any) {
-            console.warn('[Ocosay] showToast failed:', err)
-          }
+          showToastFn({
+            body: {
+              title: `Ocosay v${pluginVersion} Plugin Loaded`,
+              message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
+              variant: 'success'
+            }
+          })
         }
       }, 1000)
     },
