@@ -28,9 +28,23 @@
 
 | 平台 | 支持状态 | 说明 |
 |------|----------|------|
-| macOS | ✅ 完全支持 | Darwin 架构，native 播放 |
-| Linux | ✅ 完全支持 | 需安装 mpv/libuv |
-| Windows | ⚠️ 部分支持 | WSL 环境推荐 |
+| macOS | ✅ 完全支持 | howler.js 跨平台音频后端 |
+| Linux | ✅ 完全支持 | howler.js 跨平台音频后端 |
+| Windows | ✅ 完全支持 | howler.js 跨平台音频后端 |
+
+### 音频后端
+
+ocosay 使用统一的 `AudioBackend` 架构：
+
+| 后端 | 类型 | 说明 |
+|------|------|------|
+| **howler** | 跨平台 | 基于 howler.js，纯 JavaScript 实现，npm 直接安装无需编译 |
+| naudiodon | 流式 | native 模块，支持真正的流式播放（需 npm install） |
+| afplay | macOS | 系统命令 afplay |
+| aplay | Linux | 系统命令 aplay |
+| powershell | Windows | PowerShell PlaySync |
+
+> **注意**: 流式播放（豆包模式）需要 naudiodon 后端支持。请执行 `npm install naudiodon` 安装。
 
 ## 安装方式
 
