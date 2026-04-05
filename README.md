@@ -46,19 +46,55 @@ ocx install @mingxy/ocosay
 npm install @mingxy/ocosay
 ```
 
-在 OpenCode 配置文件中添加：
+在 OpenCode 配置文件中添加插件：
 
-```json
+```jsonc
 {
-  "plugins": [
+  "plugin": [
     "@mingxy/ocosay"
-  ],
-  "minimax": {
-    "apiKey": "your-api-key",
-    "voiceId": "male-qn-qingse"
+  ]
+}
+```
+
+> **首次安装**：重启 OpenCode 后，插件会自动在 `~/.config/opencode/ocosay.jsonc` 生成默认配置文件。
+> 请编辑该文件，填写您的 `apiKey` 和 `baseURL`。
+
+## 快速开始
+
+### 1. 添加插件
+
+在 `~/.config/opencode/opencode.jsonc` 中添加：
+
+```jsonc
+{
+  "plugin": [
+    "@mingxy/ocosay"
+  ]
+}
+```
+
+### 2. 重启 OpenCode
+
+插件会自动下载并初始化。
+
+### 3. 填写配置
+
+首次启动后，插件会自动生成 `~/.config/opencode/ocosay.jsonc` 配置文件。
+
+编辑该文件，填写必填项：
+
+```jsonc
+{
+  "providers": {
+    "minimax": {
+      "apiKey": "您的API_KEY",           // ⚠️ 必填
+      "baseURL": "https://api.minimaxi.com"  // ⚠️ 必填
+    }
   }
 }
 ```
+
+### 4. 重启 OpenCode 使配置生效
 
 ## 快速开始
 
