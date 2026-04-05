@@ -579,6 +579,10 @@ npm run watch
 
 ## Changelog
 
+### v1.0.8 (2026-04-05)
+**New Features:**
+- ✨ 新增 OpenCode 启动成功弹窗，显示插件版本号和 autoRead 模式状态
+
 ### v1.0.4 (2026-04-05)
 **Bug Fix & Improvements:**
 - 🐛 修复 npm 包包含源码和测试文件问题（添加 .npmignore）

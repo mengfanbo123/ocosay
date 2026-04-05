@@ -313,6 +313,103 @@ describe('config.ts', () => {
       expect(config.providers.minimax.audioFormat).toBe('mp3')
     })
 
+    it('should resolve apiKey from environment variable {env:VAR_NAME}', () => {
+      const userConfig = {
+        providers: {
+          minimax: {
+            apiKey: '{env:MINIMAX_API_KEY}'
+          }
+        }
+      }
+
+      ;(fs.existsSync as jest.Mock).mockImplementation((p: string) => {
+        return p === mockConfigPath || p === path.dirname(mockConfigPath)
+      })
+      ;(fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(userConfig))
+
+      const originalApiKey = process.env.MINIMAX_API_KEY
+      process.env.MINIMAX_API_KEY = 'env-secret-key'
+
+      const config = loadOrCreateConfig()
+
+      expect(config.providers.minimax.apiKey).toBe('env-secret-key')
+
+      if (originalApiKey !== undefined) {
+        process.env.MINIMAX_API_KEY = originalApiKey
+      } else {
+        delete process.env.MINIMAX_API_KEY
+      }
+    })
+
+    it('should use plain text apiKey when not {env:} format', () => {
+      const userConfig = {
+        providers: {
+          minimax: {
+            apiKey: 'plain-text-key'
+          }
+        }
+      }
+
+      ;(fs.existsSync as jest.Mock).mockImplementation((p: string) => {
+        return p === mockConfigPath || p === path.dirname(mockConfigPath)
+      })
+      ;(fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(userConfig))
+
+      const config = loadOrCreateConfig()
+
+      expect(config.providers.minimax.apiKey).toBe('plain-text-key')
+    })
+
+    it('should resolve baseURL from environment variable', () => {
+      const userConfig = {
+        providers: {
+          minimax: {
+            apiKey: 'test-key',
+            baseURL: '{env:MINIMAX_BASE_URL}'
+          }
+        }
+      }
+
+      ;(fs.existsSync as jest.Mock).mockImplementation((p: string) => {
+        return p === mockConfigPath || p === path.dirname(mockConfigPath)
+      })
+      ;(fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(userConfig))
+
+      const originalBaseURL = process.env.MINIMAX_BASE_URL
+      process.env.MINIMAX_BASE_URL = 'https://custom.api.com'
+
+      const config = loadOrCreateConfig()
+
+      expect(config.providers.minimax.baseURL).toBe('https://custom.api.com')
+
+      if (originalBaseURL !== undefined) {
+        process.env.MINIMAX_BASE_URL = originalBaseURL
+      } else {
+        delete process.env.MINIMAX_BASE_URL
+      }
+    })
+
+    it('should return empty string when env var does not exist', () => {
+      const userConfig = {
+        providers: {
+          minimax: {
+            apiKey: '{env:NON_EXISTENT_VAR_12345}'
+          }
+        }
+      }
+
+      ;(fs.existsSync as jest.Mock).mockImplementation((p: string) => {
+        return p === mockConfigPath || p === path.dirname(mockConfigPath)
+      })
+      ;(fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(userConfig))
+
+      delete process.env.NON_EXISTENT_VAR_12345
+
+      const config = loadOrCreateConfig()
+
+      expect(config.providers.minimax.apiKey).toBe('')
+    })
+
     it('should set correct file permissions on new config', () => {
       ;(fs.existsSync as jest.Mock).mockReturnValue(false)
       ;(fs.mkdirSync as jest.Mock).mockReturnValue(undefined)

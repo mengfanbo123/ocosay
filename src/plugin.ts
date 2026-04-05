@@ -3,8 +3,17 @@ import type { Plugin, PluginInput, PluginOptions } from '@opencode-ai/plugin'
 import { handleToolCall } from './index'
 import { initialize, destroy } from './index'
 import { loadOrCreateConfig } from './config'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 
 const pluginName = 'ocosay'
+let pluginVersion = '0.0.0'
+try {
+  const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8'))
+  pluginVersion = pkg.version || '0.0.0'
+} catch {
+  // 版本号读取失败不影响插件加载
+}
 
 const ttsSpeakTool = tool({
   description: '将文本转换为语音并播放',
@@ -140,10 +149,18 @@ const ttsStreamStatusTool = tool({
   }
 })
 
-const OcosayPlugin: Plugin = async (_input: PluginInput, _options?: PluginOptions) => {
+const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions) => {
   console.info(`${pluginName}: initializing...`)
 
   const config = loadOrCreateConfig()
+
+  input.client?.tui?.showToast({
+    body: {
+      variant: 'success',
+      title: `Ocosay v${pluginVersion} 插件加载成功`,
+      message: `自动朗读模式: ${config.autoRead ? '已开启' : '已关闭'}`
+    }
+  })
 
   await initialize({
     autoRead: config.autoRead,
@@ -176,4 +193,4 @@ const OcosayPlugin: Plugin = async (_input: PluginInput, _options?: PluginOption
 }
 
 export const server = OcosayPlugin
-export default server
+export default OcosayPlugin

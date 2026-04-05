@@ -126,6 +126,18 @@ export function mergeWithDefaults(
   }
 }
 
+/**
+ * 解析配置值，支持 {env:VAR_NAME} 格式的环境变量引用
+ */
+function resolveEnvValue(value: string | undefined): string {
+  if (!value) return ''
+  if (value.startsWith('{env:') && value.endsWith('}')) {
+    const envVar = value.slice(5, -1)
+    return process.env[envVar] || ''
+  }
+  return value
+}
+
 export function loadOrCreateConfig(): OcosayConfig {
   const configDir = path.dirname(CONFIG_PATH)
 
@@ -167,8 +179,8 @@ export function loadOrCreateConfig(): OcosayConfig {
       ...merged,
       providers: {
         minimax: {
-          apiKey: loaded.providers?.minimax?.apiKey ?? '',
-          baseURL: loaded.providers?.minimax?.baseURL ?? '',
+          apiKey: resolveEnvValue(loaded.providers?.minimax?.apiKey),
+          baseURL: resolveEnvValue(loaded.providers?.minimax?.baseURL),
           voiceId: loaded.providers?.minimax?.voiceId ?? '',
           model: loaded.providers?.minimax?.model ?? 'stream',
           ttsModel: loaded.providers?.minimax?.ttsModel ?? 'speech-2.8-hd',

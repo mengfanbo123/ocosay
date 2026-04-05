@@ -9,8 +9,17 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { writeFileSync, unlinkSync, existsSync } from 'fs'
 
+import { isWsl } from './index'
+
 // 白名单：Windows 路径格式（禁止 - 防止命令注入）
 const SAFE_PATH_REGEX = /^[\w\:\\_.]+$/i
+
+// WSL 路径转换为 Windows 路径
+function wslPathToWindows(wslPath: string): string {
+  return wslPath
+    .replace(/^\/mnt\/([a-z])\//, '$1:/')
+    .replace(/\//g, '\\')
+}
 
 // 定义不支持操作的错误类
 class UnsupportedError extends Error {
@@ -45,7 +54,11 @@ export class PowerShellBackend implements AudioBackend {
   
   start(filePath: string): void {
     if (this._started) return
-    
+
+    if (isWsl()) {
+      filePath = wslPathToWindows(filePath)
+    }
+
     if (!SAFE_PATH_REGEX.test(filePath)) {
       throw new Error(`Invalid file path: ${filePath}`)
     }

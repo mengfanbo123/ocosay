@@ -52,6 +52,15 @@ function isNaudiodonAvailable(): boolean {
   }
 }
 
+export function isWsl(): boolean {
+  if (process.platform !== 'linux') return false
+  try {
+    return require('fs').readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft')
+  } catch {
+    return false
+  }
+}
+
 /**
  * 创建音频后端
  * @param type 后端类型，默认 AUTO（自动选择）
@@ -78,6 +87,9 @@ export function createBackend(type: BackendType = BackendType.AUTO, options: Bac
     case 'darwin':
       return new AfplayBackend(options)
     case 'linux':
+      if (isWsl()) {
+        return new PowerShellBackend(options)
+      }
       return new AplayBackend(options)
     case 'win32':
       return new PowerShellBackend(options)
