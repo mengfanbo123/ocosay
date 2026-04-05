@@ -209,8 +209,12 @@ export async function handleToolCall(
         const synthesizer = getStreamingSynthesizer()
         if (streamReader && synthesizer) {
           streamReader.start()
-          if (args?.text) {
+          // 确保 args.text 是字符串类型才调用 synthesize
+          if (args?.text !== undefined && typeof args.text === 'string') {
+            console.log('[tts_stream_speak] synthesizing text:', args.text.substring(0, 50) + '...')
             synthesizer.synthesize(args.text)
+          } else if (args?.text !== undefined) {
+            console.log('[tts_stream_speak] args.text is not a string, type:', typeof args.text, 'value:', args.text)
           }
           return { success: true, message: 'Stream speak started' }
         }
