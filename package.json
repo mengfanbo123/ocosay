@@ -29,9 +29,7 @@
     "build:plugin": "esbuild src/plugin.ts --bundle --platform=node --format=esm --outdir=dist --sourcemap --external:@opencode-ai/plugin --external:axios --external:ws --external:zod",
     "watch": "tsc --watch",
     "test": "jest",
-    "lint": "eslint src --ext .ts",
-    "install": "node scripts/install-portaudio.cjs && node scripts/compile-native.cjs",
-    "install:portaudio": "node scripts/install-portaudio.cjs"
+    "lint": "eslint src --ext .ts"
   },
   "keywords": [
     "tts",
