@@ -9,7 +9,14 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { writeFileSync, unlinkSync, existsSync } from 'fs'
 
-import { isWsl } from './index'
+function isWsl(): boolean {
+  if (process.platform !== 'linux') return false
+  try {
+    return require('fs').readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft')
+  } catch {
+    return false
+  }
+}
 
 // 白名单：Windows/WSL 路径格式（禁止 - 防止命令注入）
 // 允许: 字母数字 \w, Windows盘符 : \:, 反斜杠 \\, 下划线 _, 点 ., $ @ /, 以及 -

@@ -12,6 +12,7 @@ export { AplayBackend } from './aplay-backend'
 export { PowerShellBackend } from './powershell-backend'
 export { HowlerBackend } from './howler-backend'
 
+import { execSync } from 'child_process'
 import { AudioBackend, BackendOptions } from './base'
 import { NaudiodonBackend } from './naudiodon-backend'
 import { AfplayBackend } from './afplay-backend'
@@ -19,6 +20,19 @@ import { AplayBackend } from './aplay-backend'
 import { PowerShellBackend } from './powershell-backend'
 import { HowlerBackend } from './howler-backend'
 import { logger } from '../../utils/logger'
+
+function execCmd(cmd: string): { success: boolean; output: string } {
+  try {
+    const output = execSync(cmd, { stdio: 'pipe', encoding: 'utf8' })
+    return { success: true, output }
+  } catch (err: any) {
+    return { success: false, output: err.message || '' }
+  }
+}
+
+function isCommandAvailable(cmd: string): boolean {
+  return execCmd(`which ${cmd}`).success
+}
 
 /**
  * 后端类型枚举
@@ -58,28 +72,13 @@ function isNaudiodonAvailable(): boolean {
   }
 }
 
-export function isWsl(): boolean {
-  if (process.platform !== 'linux') return false
-  try {
-    return require('fs').readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft')
-  } catch {
-    return false
-  }
-}
-
-/**
- * 创建音频后端
- * @param type 后端类型，默认 AUTO（自动选择）
- * @param options 后端配置选项
- * @returns 音频后端实例
- */
 export function createBackend(type: BackendType = BackendType.AUTO, options: BackendOptions = {}): AudioBackend {
   const platform = process.platform
-  
+   
   if (type !== BackendType.AUTO) {
     return createBackendByType(type, options)
   }
-  
+   
   if (isNaudiodonAvailable()) {
     try {
       const naudiodon = require('naudiodon')
@@ -94,15 +93,18 @@ export function createBackend(type: BackendType = BackendType.AUTO, options: Bac
       logger.error({ err }, 'failed to initialize naudiodon backend')
     }
   }
-  
+   
   switch (platform) {
     case 'darwin':
       return new AfplayBackend(options)
     case 'linux':
-      if (isWsl()) {
-        return new PowerShellBackend(options)
+      if (isCommandAvailable('aplay')) {
+        const test = execCmd('aplay -l')
+        if (test.success && !test.output.includes('no soundcards')) {
+          return new AplayBackend(options)
+        }
       }
-      return new AplayBackend(options)
+      return new HowlerBackend(options)
     case 'win32':
       return new PowerShellBackend(options)
     default:
