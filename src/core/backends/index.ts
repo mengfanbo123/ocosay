@@ -84,7 +84,11 @@ export function createBackend(type: BackendType = BackendType.AUTO, options: Bac
     try {
       const naudiodon = require('naudiodon')
       if (naudiodon) {
-        return new NaudiodonBackend(options)
+        const devices = naudiodon.getDevices()
+        if (devices && devices.length > 0) {
+          return new NaudiodonBackend(options)
+        }
+        logger.debug('naudiodon has no audio devices, skipping')
       }
     } catch (err) {
       logger.error({ err }, 'failed to initialize naudiodon backend')
