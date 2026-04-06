@@ -4,6 +4,7 @@ import { handleToolCall } from './index.js'
 import { initialize } from './index.js'
 import { loadOrCreateConfig } from './config.js'
 import { createModuleLogger } from './utils/logger.js'
+import { notificationService } from './core/notification.js'
 
 const logger = createModuleLogger('Plugin')
 import { readFileSync } from 'fs'
@@ -170,28 +171,23 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
 
   const opencodeTui = input.client?.tui
   ;(global as any).__opencode_tui__ = opencodeTui
+  notificationService.setTui(opencodeTui)
 
-  // 插件初始化完成后立即显示 Toast（延迟 7 秒等待 TUI 渲染）
-  setTimeout(async () => {
-    if (!opencodeTui?.showToast) return
+  setTimeout(() => {
     if (initError) {
-      await opencodeTui.showToast({
-        body: {
-          title: `Ocosay v${pluginVersion} Initialization Failed`,
-          message: 'Initialization failed, please check config',
-          variant: 'error'
-        }
-      })
+      notificationService.error(
+        `Ocosay v${pluginVersion} Init Failed`,
+        'Please check your config file',
+        8000
+      )
     } else {
-      await opencodeTui.showToast({
-        body: {
-          title: `Ocosay v${pluginVersion} Plugin Loaded`,
-          message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
-          variant: 'success'
-        }
-      })
+      notificationService.success(
+        `Ocosay v${pluginVersion} Ready`,
+        `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
+        5000
+      )
     }
-  }, 7000)
+  }, 1500)
 
   return {
     tool: {
@@ -227,15 +223,11 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
             })
             initError = null
           } catch (err) {
-            if (opencodeTui?.showToast) {
-              await opencodeTui.showToast({
-                body: {
-                  title: `Ocosay v${pluginVersion} Initialization Failed`,
-                  message: 'Initialization failed, please check config',
-                  variant: 'error'
-                }
-              })
-            }
+            notificationService.error(
+              `Ocosay v${pluginVersion} Init Failed`,
+              'Initialization failed, please check config',
+              8000
+            )
           }
         }
       }
