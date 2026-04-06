@@ -23,6 +23,8 @@
 - 📋 **音色列表** - 查询可用音色
 - 🔌 **OpenCode Plugin** - 无缝集成 OpenCode
 - 📡 **豆包模式** - autoRead + TuiEventBus，边接收边朗读
+- 📝 **日志系统** - 使用 pino 统一日志格式，写入 `~/.ocosay/ocosay.log`
+- 🔔 **Toast 提示** - 播放成功/失败显示 Toast 通知
 
 ## Platform Support
 
@@ -236,7 +238,7 @@ ocosay 提供 10 个工具用于 OpenCode 集成：
 
 | 工具名 | 描述 | 参数 |
 |--------|------|------|
-| `tts_speak` | 将文本转换为语音并播放 | `text` (必填), `provider`, `voice`, `model`, `speed`, `volume`, `pitch` |
+| `tts_speak` | 将文本转换为语音并播放 | `text` (必填)，其他参数从配置文件读取 |
 | `tts_stop` | 停止当前 TTS 播放 | - |
 | `tts_pause` | 暂停当前 TTS 播放 | - |
 | `tts_resume` | 恢复暂停的 TTS 播放 | - |
@@ -249,15 +251,12 @@ ocosay 提供 10 个工具用于 OpenCode 集成：
 
 ### tts_speak
 
-将文本转换为语音并播放。
+将文本转换为语音并播放。其他参数（provider、voice、model、speed等）从配置文件读取。
 
 ```typescript
 // 工具调用
 await tts_speak({
-  text: '这是要播放的文本内容',
-  provider: 'minimax',
-  voice: 'male-qn-qingse',
-  speed: 1.0
+  text: '这是要播放的文本内容'
 })
 ```
 
@@ -574,6 +573,35 @@ try {
 ### Q: 报错 AUTH?
 
 **A:** 检查 API Key 是否正确配置，或密钥是否过期。
+
+## 日志系统
+
+ocosay 使用 pino 作为日志库，提供统一的日志格式。
+
+### 日志位置
+
+```
+~/.ocosay/ocosay.log
+```
+
+### 日志级别
+
+| 级别 | 说明 |
+|------|------|
+| `error` | 错误信息 |
+| `warn` | 警告信息 |
+| `info` | 一般信息 |
+| `debug` | 调试信息 |
+
+### 示例
+
+```bash
+# 查看实时日志
+tail -f ~/.ocosay/ocosay.log
+
+# 查看错误日志
+grep "error" ~/.ocosay/ocosay.log
+```
 
 ## 开发
 

@@ -5,6 +5,7 @@
 
 import { speak, stop, pause, resume, listVoices, getDefaultSpeaker } from '../core/speaker'
 import { TTSError, TTSErrorCode } from '../core/types'
+import { logger } from '../utils/logger'
 import { 
   isStreamEnabled, 
   isAutoReadEnabled,
@@ -28,17 +29,17 @@ function extractTextArg(args: unknown): string | undefined {
   const text7 = argObj.text7
   if (text7 !== null && text7 !== undefined) {
     if (typeof text7 === 'string' && text7.trim().length > 0) {
-      console.warn('[tts] Received text7 instead of text from OpenCode framework')
+      logger.warn('received text7 instead of text from OpenCode framework')
       return text7.trim()
     }
     if (typeof text7 === 'object' && 'content' in text7) {
       const content = (text7 as any).content
       if (typeof content === 'string' && content.trim().length > 0) {
-        console.warn('[tts] text7 is an object with content field')
+        logger.warn('text7 is an object with content field')
         return content.trim()
       }
     }
-    console.warn('[tts] text7 is not a valid string or object with content, type:', typeof text7)
+    logger.warn({ type: typeof text7 }, 'text7 is not a valid string or object with content')
   }
 
   for (const key of Object.keys(argObj)) {
@@ -51,7 +52,7 @@ function extractTextArg(args: unknown): string | undefined {
   }
 
   if (text !== undefined) {
-    console.warn('[tts] text arg is not a valid string, type:', typeof text)
+    logger.warn({ type: typeof text }, 'text arg is not a valid string')
   }
   return undefined
 }
@@ -85,17 +86,7 @@ export const ttsTools = [
   },
   {
     name: 'tts_list_voices',
-    description: '列出可用的音色',
-    input: {
-      type: 'object',
-      properties: {
-        provider: { 
-          type: 'string', 
-          description: 'TTS 提供商名称',
-          default: 'minimax'
-        }
-      }
-    }
+    description: '列出可用的音色（使用配置文件中的默认提供商）'
   },
   {
     name: 'tts_list_providers',
@@ -214,7 +205,7 @@ export async function handleToolCall(
           streamReader.start()
           const textArg = extractTextArg(args)
           if (textArg && typeof textArg === 'string' && textArg.trim().length > 0) {
-            console.log('[tts_stream_speak] synthesizing text:', textArg.substring(0, 50) + '...')
+            logger.info({ text: textArg.substring(0, 50) + '...' }, 'synthesizing text')
             synthesizer.synthesize(textArg)
           }
           return { success: true, message: 'Stream speak started' }

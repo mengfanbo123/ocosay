@@ -6,7 +6,7 @@
 import { EventEmitter } from 'events'
 import { 
   TTSProvider, 
-  TTSError, 
+  TTSError,
   TTSErrorCode,
   SpeakOptions,
   AudioResult,
@@ -17,6 +17,28 @@ import {
 import { getProvider, listProviders, hasProvider } from '../providers/base'
 import { AudioPlayer, PlayerEvents } from './player'
 import { logger } from '../utils/logger'
+
+/**
+ * Toast 函数 - 统一的Toast通知封装
+ * 适配用户期望的格式: toast({ title, body, type })
+ */
+function toast(options: { title: string; body: string; type: 'success' | 'error' | 'info' }): void {
+  const showToastFn = (global as any).__opencode_tui__?.showToast
+  if (showToastFn) {
+    try {
+      showToastFn({
+        body: {
+          title: options.title,
+          message: options.body,
+          variant: options.type,
+          duration: 3000
+        }
+      })
+    } catch (err) {
+      logger.warn({ err }, 'toast call failed')
+    }
+  }
+}
 
 export interface SpeakerOptions {
   defaultProvider?: string
@@ -47,21 +69,11 @@ export class Speaker extends EventEmitter {
         this.emit('end', this.currentText)
 
         // 显示播放成功 Toast
-        const showToastFn = (global as any).__opencode_tui__?.showToast
-        if (showToastFn) {
-          try {
-            showToastFn({
-              body: {
-                title: '🎙️ TTS',
-                message: 'Playback completed',
-                variant: 'success',
-                duration: 3000
-              }
-            })
-          } catch (err) {
-            console.warn('[Speaker] Toast playback completed failed:', err)
-          }
-        }
+        toast({
+          title: 'TTS playback success',
+          body: 'Audio generated and playing',
+          type: 'info'
+        })
       },
       onError: (error) => this.emit('error', error),
       onPause: () => {
@@ -108,23 +120,6 @@ export class Speaker extends EventEmitter {
     this.isSpeaking = true
     this.currentText = text
     
-    // 显示播放开始 Toast
-    const showToastFn = (global as any).__opencode_tui__?.showToast
-    if (showToastFn) {
-      try {
-        showToastFn({
-          body: {
-            title: '🎙️ TTS',
-            message: `Playing: ${text.substring(0, 30)}...`,
-            variant: 'info',
-            duration: 3000
-          }
-        })
-      } catch (err) {
-        console.warn('[Speaker] Toast playback start failed:', err)
-      }
-    }
-    
     try {
       // 获取 provider
       const providerName = options.provider || this.options.defaultProvider || 'minimax'
@@ -158,21 +153,12 @@ export class Speaker extends EventEmitter {
       this.isSpeaking = false
 
       // 显示播放失败 Toast
-      const showToastFn = (global as any).__opencode_tui__?.showToast
-      if (showToastFn) {
-        try {
-          showToastFn({
-            body: {
-              title: '🎙️ TTS',
-              message: 'Playback failed, please check config',
-              variant: 'error',
-              duration: 3000
-            }
-          })
-        } catch (err) {
-          console.warn('[Speaker] Toast playback failed:', err)
-        }
-      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      toast({
+        title: 'TTS playback error',
+        body: errorMessage,
+        type: 'error'
+      })
 
       if (error instanceof TTSError) {
         this.emit('error', error)

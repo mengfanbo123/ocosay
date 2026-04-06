@@ -3,6 +3,7 @@ import type { Plugin, PluginInput, PluginOptions } from '@opencode-ai/plugin'
 import { handleToolCall } from './index.js'
 import { initialize } from './index.js'
 import { loadOrCreateConfig } from './config.js'
+import { logger } from './utils/logger.js'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
@@ -21,15 +22,9 @@ try {
 }
 
 const ttsSpeakTool = tool({
-  description: '将文本转换为语音并播放',
+  description: '将文本转换为语音并播放（使用配置文件中的默认音色和模型）',
   args: {
-    text: tool.schema.string().describe('要转换的文本内容'),
-    provider: tool.schema.string().optional().describe('TTS 提供商名称'),
-    voice: tool.schema.string().optional().describe('音色 ID'),
-    model: tool.schema.enum(['sync', 'async', 'stream']).optional().describe('合成模式'),
-    speed: tool.schema.number().optional().describe('语速 0.5-2.0'),
-    volume: tool.schema.number().optional().describe('音量 0-100'),
-    pitch: tool.schema.number().optional().describe('音调 0.5-2.0')
+    text: tool.schema.string().describe('要转换的文本内容')
   },
   execute: async (args) => {
     const result = await handleToolCall('tts_speak', args)
@@ -77,10 +72,8 @@ const ttsResumeTool = tool({
 })
 
 const ttsListVoicesTool = tool({
-  description: '列出可用的音色',
-  args: {
-    provider: tool.schema.string().optional().describe('TTS 提供商名称')
-  },
+  description: '列出可用的音色（使用配置文件中的默认提供商）',
+  args: {},
   execute: async (args) => {
     const result = await handleToolCall('tts_list_voices', args)
     if (result.success === false) {
@@ -115,11 +108,9 @@ const ttsStatusTool = tool({
 })
 
 const ttsStreamSpeakTool = tool({
-  description: '启动流式朗读（豆包模式），订阅AI回复并边生成边朗读',
+  description: '启动流式朗读（豆包模式），订阅AI回复并边生成边朗读（使用配置文件中的默认音色）',
   args: {
-    text: tool.schema.string().optional().describe('初始文本（可选）'),
-    voice: tool.schema.string().optional().describe('音色ID'),
-    model: tool.schema.enum(['sync', 'async', 'stream']).optional().describe('合成模式')
+    text: tool.schema.string().optional().describe('初始文本（可选）')
   },
   execute: async (args) => {
     const result = await handleToolCall('tts_stream_speak', args)
@@ -172,7 +163,7 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
     })
   } catch (err) {
     initError = err instanceof Error ? err : new Error(String(err))
-    console.error('[Ocosay] initialization failed:', initError)
+    logger.error({ error: initError }, 'initialization failed')
   }
 
   const opencodeTui = input.client?.tui

@@ -92,7 +92,7 @@ function initializeStreamComponents(config: InitializeOptions): void {
     onStart: () => {},
     onEnd: () => {},
     onProgress: (bytesWritten: number) => {},
-    onError: (error: Error) => console.error('Stream player error:', error),
+    onError: (error: Error) => logger.error({ error }, 'stream player error'),
     onStop: () => {}
   }
   streamPlayer = new StreamPlayer({ events: playerEvents })
@@ -107,7 +107,7 @@ function initializeStreamComponents(config: InitializeOptions): void {
       try {
         await streamingSynthesizer?.synthesize(text)
       } catch (error) {
-        console.error('Synthesize error:', error)
+        logger.error({ error }, 'synthesize error')
       }
     }
     isSynthesizing = false
@@ -237,7 +237,7 @@ export function showToast(options: { body: { title: string; message: string; var
     try {
       showToastFn(options)
     } catch (err) {
-      console.warn('[Ocosay] showToast failed:', err)
+      logger.warn({ err }, 'showToast failed')
     }
   }
 }

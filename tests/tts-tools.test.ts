@@ -90,24 +90,11 @@ describe('ttsTools', () => {
 
   describe('handleToolCall', () => {
     describe('tts_speak', () => {
-      it('should call speak with correct arguments', async () => {
+      it('should call speak with text only (config defaults used)', async () => {
         const result = await handleToolCall('tts_speak', {
-          text: 'Hello world',
-          provider: 'minimax',
-          voice: 'voice1',
-          model: 'stream',
-          speed: 1.0,
-          volume: 80,
-          pitch: 1.0
+          text: 'Hello world'
         })
-        expect(speaker.speak).toHaveBeenCalledWith('Hello world', expect.objectContaining({
-          provider: 'minimax',
-          voice: 'voice1',
-          model: 'stream',
-          speed: 1.0,
-          volume: 80,
-          pitch: 1.0
-        }))
+        expect(speaker.speak).toHaveBeenCalledWith('Hello world')
         expect(result).toEqual({ success: true, message: 'Speech completed' })
       })
 
@@ -154,8 +141,8 @@ describe('ttsTools', () => {
     })
 
     describe('tts_list_voices', () => {
-      it('should return voices list', async () => {
-        const result = await handleToolCall('tts_list_voices', { provider: 'minimax' })
+      it('should return voices list using config default provider', async () => {
+        const result = await handleToolCall('tts_list_voices')
         expect(result.success).toBe(true)
         expect(result.voices).toEqual([
           { id: 'voice1', name: 'Voice 1', language: 'zh-CN' }

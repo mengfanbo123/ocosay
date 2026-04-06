@@ -279,14 +279,10 @@ describe('config.ts', () => {
       })
       ;(fs.readFileSync as jest.Mock).mockReturnValue('invalid json {')
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation()
       const config = loadOrCreateConfig()
 
-      expect(consoleErrorSpy).toHaveBeenCalled()
       expect(config.providers.minimax.apiKey).toBe('')
       expect(config.providers.minimax.baseURL).toBe('https://api.minimaxi.com')
-
-      consoleErrorSpy.mockRestore()
     })
 
     it('should handle minimax provider partial config', () => {

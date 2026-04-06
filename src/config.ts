@@ -1,6 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
+import { logger } from './utils/logger'
 
 // OcosayConfig 类型定义
 export interface OcosayConfig {
@@ -150,7 +151,7 @@ export function loadOrCreateConfig(): OcosayConfig {
   }
 
   if (!fs.existsSync(CONFIG_PATH)) {
-    console.info('[ocosay] 配置文件不存在，正在创建默认配置...')
+    logger.info('config file not found, creating default config')
     const defaultConfig = generateDefaultConfig()
     const configContent = JSON.stringify(defaultConfig, null, 2)
     try {
@@ -158,13 +159,13 @@ export function loadOrCreateConfig(): OcosayConfig {
       try {
         fs.chmodSync(CONFIG_PATH, 0o600)
       } catch (err) {
-        console.warn(`[ocosay] 无法设置配置文件权限: ${err}`)
+        logger.warn({ err }, 'failed to set config file permissions')
       }
     } catch (err) {
-      throw new Error(`[ocosay] 无法写入配置文件 ${CONFIG_PATH}: ${err}`)
+      throw new Error(`[ocosay] cannot write config file ${CONFIG_PATH}: ${err}`)
     }
-    console.info(`[ocosay] 配置文件已创建: ${CONFIG_PATH}`)
-    console.info('[ocosay] 请编辑配置文件填入 API Key 和 Base URL')
+    logger.info({ path: CONFIG_PATH }, 'config file created')
+    logger.info('please edit config file to add API Key and Base URL')
     return defaultConfig
   }
 
@@ -189,7 +190,7 @@ export function loadOrCreateConfig(): OcosayConfig {
       }
     }
   } catch (error) {
-    console.error('[ocosay] 配置文件读取失败，使用默认配置:', error)
+    logger.error({ error }, 'config file read failed, using default config')
     return generateDefaultConfig()
   }
 }

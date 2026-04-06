@@ -157,7 +157,7 @@ describe('plugin.ts', () => {
 
     it('tts_speak: name, description, input_schema 正确', () => {
       const tool = plugin.tool.tts_speak
-      expect(tool.description).toBe('将文本转换为语音并播放')
+      expect(tool.description).toBe('将文本转换为语音并播放（使用配置文件中的默认音色和模型）')
       expect(tool.args).toBeDefined()
       expect(typeof tool.args).toBe('object')
     })
@@ -200,7 +200,7 @@ describe('plugin.ts', () => {
 
     it('tts_stream_speak: name, description, input_schema 正确', () => {
       const tool = plugin.tool.tts_stream_speak
-      expect(tool.description).toBe('启动流式朗读（豆包模式），订阅AI回复并边生成边朗读')
+      expect(tool.description).toBe('启动流式朗读（豆包模式），订阅AI回复并边生成边朗读（使用配置文件中的默认音色）')
       expect(tool.args).toBeDefined()
     })
 

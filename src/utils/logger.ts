@@ -1,44 +1,36 @@
-/**
- * Logger - pino 日志系统
- * 支持写入 ~/.ocosay/ocosay.log
- */
-
 import pino from 'pino'
 import { homedir } from 'os'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 
-// 日志目录（延迟创建，避免同步阻塞）
 const logDir = join(homedir(), '.ocosay')
+const logFile = join(logDir, 'ocosay.log')
 
-// 确保目录存在（同步版本用于初始化，之后应该异步化）
-function ensureLogDir(): void {
-  if (!existsSync(logDir)) {
-    try {
-      mkdirSync(logDir, { recursive: true })
-    } catch (e) {
-      // 忽略创建失败
-    }
+if (!existsSync(logDir)) {
+  try {
+    mkdirSync(logDir, { recursive: true })
+  } catch {
+    // ignore
   }
 }
 
-// 立即调用确保目录存在（启动时一次）
-ensureLogDir()
+const streams: pino.StreamEntry[] = [
+  { stream: process.stdout },
+]
 
-export const logger = pino({
-  level: process.env.OCOSAY_LOG_LEVEL || 'info',
-  transport: {
-    targets: [
-      {
-        target: 'pino/file',
-        options: { destination: join(logDir, 'ocosay.log'), mkdir: false },
-        level: 'info',
-      },
-    ],
-  },
-})
-
-// 开发环境日志级别设为 debug
-if (process.env.NODE_ENV !== 'production') {
-  logger.level = 'debug'
+try {
+  streams.push({ stream: pino.destination({ dest: logFile, mkdir: true }) })
+} catch {
+  // fallback to stdout only
 }
+
+const level = process.env.NODE_ENV !== 'production' ? 'debug' : (process.env.OCOSAY_LOG_LEVEL || 'info')
+
+export const logger = pino(
+  {
+    level,
+    base: { service: 'ocosay' },
+    timestamp: pino.stdTimeFunctions.isoTime,
+  },
+  pino.multistream(streams)
+)
