@@ -3,7 +3,7 @@
  * 用于 OpenCode Plugin 注册
  */
 
-import { speak, stop, pause, resume, listVoices, getDefaultSpeaker } from '../core/speaker'
+import { speak, stop, pause, resume, listVoices, getDefaultSpeakerService } from '../services/speaker-service'
 import { TTSError, TTSErrorCode } from '../core/types'
 import { logger } from '../utils/logger'
 import { 
@@ -182,13 +182,13 @@ export async function handleToolCall(
       }
       
       case 'tts_list_providers': {
-        const speaker = getDefaultSpeaker()
+        const speaker = getDefaultSpeakerService()
         const providers = speaker.getProviders()
         return { success: true, providers }
       }
       
       case 'tts_status': {
-        const s = getDefaultSpeaker()
+        const s = getDefaultSpeakerService()
         return {
           success: true,
           isPlaying: s.isPlaying(),
