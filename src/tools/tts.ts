@@ -182,8 +182,12 @@ export async function handleToolCall(
 ): Promise<any> {
   try {
     switch (toolName) {
-      case 'tts_speak':
-        await speak(args?.text, {
+      case 'tts_speak': {
+        const text = extractTextArg(args)
+        if (!text) {
+          return { success: false, error: 'No valid text found in args' }
+        }
+        await speak(text, {
           provider: args?.provider,
           voice: args?.voice,
           model: args?.model,
@@ -192,6 +196,7 @@ export async function handleToolCall(
           pitch: args?.pitch
         })
         return { success: true, message: 'Speech completed' }
+      }
       
       case 'tts_stop':
         await stop()

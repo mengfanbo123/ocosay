@@ -47,7 +47,7 @@ export class Speaker extends EventEmitter {
         this.emit('end', this.currentText)
 
         // 显示播放成功 Toast
-        const showToastFn = (global as any).__opencode_tui_showToast__
+        const showToastFn = (global as any).__opencode_tui__?.showToast
         if (showToastFn) {
           try {
             showToastFn({
@@ -109,7 +109,7 @@ export class Speaker extends EventEmitter {
     this.currentText = text
     
     // 显示播放开始 Toast
-    const showToastFn = (global as any).__opencode_tui_showToast__
+    const showToastFn = (global as any).__opencode_tui__?.showToast
     if (showToastFn) {
       try {
         showToastFn({
@@ -158,7 +158,7 @@ export class Speaker extends EventEmitter {
       this.isSpeaking = false
 
       // 显示播放失败 Toast
-      const showToastFn = (global as any).__opencode_tui_showToast__
+      const showToastFn = (global as any).__opencode_tui__?.showToast
       if (showToastFn) {
         try {
           showToastFn({

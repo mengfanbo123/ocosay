@@ -37,10 +37,12 @@ export class StreamReader extends EventEmitter {
     }
   }
   
-  /**
-   * 处理 message.part.delta 事件
-   */
-  handleDelta(sessionID: string, messageID: string, partID: string, delta: string): void {
+  handleDelta(sessionID: string, messageID: string, partID: string, delta: unknown): void {
+    if (typeof delta !== 'string') {
+      logger.warn({ delta }, 'handleDelta received non-string delta, skipping')
+      return
+    }
+
     if (this.state === StreamState.IDLE) {
       this.state = StreamState.BUFFERING
       this.sessionID = sessionID

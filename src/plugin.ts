@@ -158,8 +158,6 @@ const ttsStreamStatusTool = tool({
 let initError: Error | null = null
 
 const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => {
-  console.info(`${pluginName}: initializing...`)
-
   const config = loadOrCreateConfig()
 
   try {
@@ -178,18 +176,14 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
     console.error('[Ocosay] initialization failed:', initError)
   }
 
-  // 通过函数参数传递 TUI API，不再使用全局状态污染
-  const opencodeShowToast = input.client?.tui?.showToast
-
-  // 将 toast 函数共享给其他模块（speaker.ts, index.ts）
-  ;(global as any).__opencode_tui_showToast__ = opencodeShowToast
+  const opencodeTui = input.client?.tui
+  ;(global as any).__opencode_tui__ = opencodeTui
 
   // 插件初始化完成后立即显示 Toast（延迟 7 秒等待 TUI 渲染）
   setTimeout(async () => {
-    if (!opencodeShowToast) return
+    if (!opencodeTui?.showToast) return
     if (initError) {
-      console.info(`[Ocosay] Ocosay v${pluginVersion} Initialization Failed: Initialization failed, please check config`)
-      await opencodeShowToast({
+      await opencodeTui.showToast({
         body: {
           title: `Ocosay v${pluginVersion} Initialization Failed`,
           message: 'Initialization failed, please check config',
@@ -197,8 +191,7 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
         }
       })
     } else {
-      console.info(`[Ocosay] Ocosay v${pluginVersion} Plugin Loaded: Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`)
-      await opencodeShowToast({
+      await opencodeTui.showToast({
         body: {
           title: `Ocosay v${pluginVersion} Plugin Loaded`,
           message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
@@ -242,10 +235,8 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
             })
             initError = null
           } catch (err) {
-            const retryToastFn = input.client?.tui?.showToast
-            if (retryToastFn) {
-              console.info(`[Ocosay] Ocosay v${pluginVersion} Initialization Failed: Initialization failed, please check config`)
-              retryToastFn({
+            if (opencodeTui?.showToast) {
+              await opencodeTui.showToast({
                 body: {
                   title: `Ocosay v${pluginVersion} Initialization Failed`,
                   message: 'Initialization failed, please check config',
@@ -256,34 +247,6 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
           }
         }
       }
-
-      setTimeout(async () => {
-        const showToastFn = input.client?.tui?.showToast
-        if (!showToastFn) {
-          console.warn('[Ocosay] showToast not available')
-          return
-        }
-
-        if (initError) {
-          console.info(`[Ocosay] Ocosay v${pluginVersion} Initialization Failed: Initialization failed, please check config`)
-          await showToastFn({
-            body: {
-              title: `Ocosay v${pluginVersion} Initialization Failed`,
-              message: 'Initialization failed, please check config',
-              variant: 'error'
-            }
-          })
-        } else {
-          console.info(`[Ocosay] Ocosay v${pluginVersion} Plugin Loaded: Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`)
-          await showToastFn({
-            body: {
-              title: `Ocosay v${pluginVersion} Plugin Loaded`,
-              message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
-              variant: 'success'
-            }
-          })
-        }
-      }, 7000)
     },
     config: async (opencodeConfig) => {
       opencodeConfig.command ??= {}
