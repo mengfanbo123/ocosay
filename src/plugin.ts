@@ -1,7 +1,7 @@
 import { tool } from '@opencode-ai/plugin'
 import type { Plugin, PluginInput, PluginOptions } from '@opencode-ai/plugin'
 import { handleToolCall } from './index.js'
-import { initialize, destroy } from './index.js'
+import { initialize } from './index.js'
 import { loadOrCreateConfig } from './config.js'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
@@ -10,7 +10,6 @@ import { dirname, join } from 'path'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const pluginName = 'ocosay'
 // 顶层 ID 导出（OpenCode Plugin 标准）
 const id = "ocosay"
 let pluginVersion = '0.0.0'

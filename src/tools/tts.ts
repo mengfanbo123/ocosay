@@ -20,32 +20,38 @@ function extractTextArg(args: unknown): string | undefined {
   }
   const argObj = args as Record<string, unknown>
 
-  // 优先使用 text 属性
   const text = argObj.text
   if (typeof text === 'string' && text.trim().length > 0) {
     return text.trim()
   }
 
-  // 检查 text7 (OpenCode 框架可能传递)
   const text7 = argObj.text7
-  if (typeof text7 === 'string' && text7.trim().length > 0) {
-    console.warn('[tts] Received text7 instead of text from OpenCode framework')
-    return text7.trim()
+  if (text7 !== null && text7 !== undefined) {
+    if (typeof text7 === 'string' && text7.trim().length > 0) {
+      console.warn('[tts] Received text7 instead of text from OpenCode framework')
+      return text7.trim()
+    }
+    if (typeof text7 === 'object' && 'content' in text7) {
+      const content = (text7 as any).content
+      if (typeof content === 'string' && content.trim().length > 0) {
+        console.warn('[tts] text7 is an object with content field')
+        return content.trim()
+      }
+    }
+    console.warn('[tts] text7 is not a valid string or object with content, type:', typeof text7)
   }
 
-  // 遍历所有 text 开头的属性，找到第一个有效字符串
   for (const key of Object.keys(argObj)) {
     if (key.startsWith('text') && key !== 'text' && key !== 'text7') {
       const val = argObj[key]
       if (typeof val === 'string' && val.trim().length > 0) {
-        console.debug(`[tts] Using ${key} as text source`)
         return val.trim()
       }
     }
   }
 
   if (text !== undefined) {
-    console.warn('[tts] text arg is not a valid string, type:', typeof text, 'value:', String(text).substring(0, 100))
+    console.warn('[tts] text arg is not a valid string, type:', typeof text)
   }
   return undefined
 }
@@ -53,40 +59,13 @@ function extractTextArg(args: unknown): string | undefined {
 export const ttsTools = [
   {
     name: 'tts_speak',
-    description: '将文本转换为语音并播放',
+    description: '将文本转换为语音并播放（使用配置文件中的默认音色和模型）',
     input: {
       type: 'object',
       properties: {
         text: { 
           type: 'string', 
           description: '要转换的文本内容' 
-        },
-        provider: { 
-          type: 'string', 
-          description: 'TTS 提供商名称',
-          default: 'minimax'
-        },
-        voice: { 
-          type: 'string', 
-          description: '音色 ID' 
-        },
-        model: { 
-          type: 'string', 
-          enum: ['sync', 'async', 'stream'],
-          description: '合成模式',
-          default: 'stream'
-        },
-        speed: { 
-          type: 'number', 
-          description: '语速 0.5-2.0' 
-        },
-        volume: { 
-          type: 'number', 
-          description: '音量 0-100' 
-        },
-        pitch: { 
-          type: 'number', 
-          description: '音调 0.5-2.0' 
         }
       },
       required: ['text']
@@ -135,22 +114,13 @@ export const ttsTools = [
   },
   {
     name: 'tts_stream_speak',
-    description: '启动流式朗读（豆包模式），订阅AI回复并边生成边朗读',
+    description: '启动流式朗读（豆包模式），订阅AI回复并边生成边朗读（使用配置文件中的默认音色）',
     input: {
       type: 'object',
       properties: {
         text: { 
           type: 'string', 
           description: '初始文本（可选）' 
-        },
-        voice: { 
-          type: 'string', 
-          description: '音色ID' 
-        },
-        model: { 
-          type: 'string', 
-          enum: ['sync', 'async', 'stream'], 
-          default: 'stream' 
         }
       }
     }
@@ -187,14 +157,7 @@ export async function handleToolCall(
         if (!text) {
           return { success: false, error: 'No valid text found in args' }
         }
-        await speak(text, {
-          provider: args?.provider,
-          voice: args?.voice,
-          model: args?.model,
-          speed: args?.speed,
-          volume: args?.volume,
-          pitch: args?.pitch
-        })
+        await speak(text)
         return { success: true, message: 'Speech completed' }
       }
       
