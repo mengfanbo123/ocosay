@@ -256,6 +256,7 @@ export function showToast(options: { body: { title: string; message: string; var
 }
 
 export { handleToolCall }
+export { notificationService } from './core/notification.js'
 export const toolNames = [
   'tts_speak',
   'tts_stop',
