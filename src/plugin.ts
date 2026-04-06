@@ -15,6 +15,9 @@ import { createRequire } from 'module'
 const logger = createModuleLogger('Plugin')
 const require = createRequire(import.meta.url)
 
+const opencodeNodeModules = join(dirname(require.resolve('@opencode-ai/plugin')), '..', '..')
+const pluginRequire = createRequire(join(opencodeNodeModules, 'package.json'))
+
 function getSkipFilePath(): string {
   return join(homedir(), '.config', 'opencode', '.naudiodon_skip')
 }
@@ -212,7 +215,7 @@ async function ensureNaudiodonCompiled(): Promise<void> {
 
 function isModuleInstalled(moduleName: string): boolean {
   try {
-    require.resolve(moduleName)
+    pluginRequire.resolve(moduleName)
     return true
   } catch {
     return false
@@ -221,7 +224,7 @@ function isModuleInstalled(moduleName: string): boolean {
 
 async function verifyModuleLoad(dep: string): Promise<boolean> {
   try {
-    require(dep)
+    pluginRequire(dep)
     logger.info(`${dep} loaded successfully`)
     return true
   } catch (err) {
@@ -232,7 +235,6 @@ async function verifyModuleLoad(dep: string): Promise<boolean> {
 
 async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
   const dep = 'speaker'
-  const basePath = dirname(require.resolve('./package.json'))
 
   if (isModuleInstalled(dep)) {
     logger.info('speaker already installed')
@@ -243,7 +245,7 @@ async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
     notificationService.info('正在编译 speaker...', 'Ocosay 音频后端', 5000)
     try {
       execSync('npm rebuild speaker', {
-        cwd: basePath,
+        cwd: opencodeNodeModules,
         stdio: 'inherit'
       })
       logger.info('speaker rebuilt')
@@ -259,7 +261,7 @@ async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
     notificationService.info('正在安装 speaker...', 'Ocosay 音频后端', 5000)
     try {
       execSync('npm install speaker', {
-        cwd: basePath,
+        cwd: opencodeNodeModules,
         stdio: 'inherit'
       })
       logger.info('speaker installed')
@@ -279,7 +281,7 @@ async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
 
     try {
       execSync('npm rebuild speaker', {
-        cwd: basePath,
+        cwd: opencodeNodeModules,
         stdio: 'inherit'
       })
       logger.info('speaker rebuilt')
@@ -303,7 +305,6 @@ async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
 
 async function ensurePlaySoundInstalled(): Promise<void> {
   const dep = 'play-sound'
-  const basePath = dirname(require.resolve('./package.json'))
 
   if (isModuleInstalled(dep)) {
     logger.info('play-sound already installed')
@@ -317,7 +318,7 @@ async function ensurePlaySoundInstalled(): Promise<void> {
 
   try {
     execSync('npm install play-sound', {
-      cwd: basePath,
+      cwd: opencodeNodeModules,
       stdio: 'inherit'
     })
     logger.info('play-sound installed')
