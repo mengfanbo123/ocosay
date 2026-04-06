@@ -64,19 +64,19 @@ async function rebuildNaudiodonDependency(dep: string): Promise<boolean> {
 
 async function fixNaudiodonDependencies(maxRetries = 5): Promise<boolean> {
   const naudiodonPath = dirname(require.resolve('naudiodon'))
-  
+
   // naudiodon 的关键编译依赖
   const criticalDeps = ['segfault-handler', 'bindings', 'node-pre-gyp']
-  
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     // 先验证当前状态
     if (await verifyNaudiodonLoad()) {
       return true
     }
-    
+
     logger.info({ attempt }, 'naudiodon not loadable, trying dependency rebuild')
     notificationService.info(`正在检查依赖 (${attempt + 1}/${maxRetries})...`, 'Ocosay', 3000)
-    
+
     // 尝试重建关键依赖
     let anySuccess = false
     for (const dep of criticalDeps) {
@@ -102,7 +102,7 @@ async function fixNaudiodonDependencies(maxRetries = 5): Promise<boolean> {
         }
       }
     }
-    
+
     // 重建 naudiodon 本身
     if (!anySuccess || !(await verifyNaudiodonLoad())) {
       try {
@@ -117,18 +117,18 @@ async function fixNaudiodonDependencies(maxRetries = 5): Promise<boolean> {
         logger.warn({ err }, 'naudiodon rebuild failed')
       }
     }
-    
+
     // 再次验证
     if (await verifyNaudiodonLoad()) {
       return true
     }
-    
+
     // 如果这轮有任何成功，休息一下再试
     if (anySuccess) {
       await new Promise(resolve => setTimeout(resolve, 1000))
     }
   }
-  
+
   return await verifyNaudiodonLoad()
 }
 
@@ -155,7 +155,7 @@ async function ensureNaudiodonCompiled(): Promise<void> {
       stdio: 'inherit'
     })
     logger.info('naudiodon compiled, verifying...')
-    
+
     // 验证模块能否加载
     const loadSuccess = await verifyNaudiodonLoad()
     if (loadSuccess) {
@@ -183,7 +183,7 @@ async function ensureNaudiodonCompiled(): Promise<void> {
           stdio: 'inherit'
         })
         logger.info('naudiodon compiled successfully after PortAudio install')
-        
+
         // 验证
         const loadSuccess = await verifyNaudiodonLoad()
         if (loadSuccess) {
@@ -241,12 +241,12 @@ function checkFFplay(): boolean {
 
 async function checkAudioEnvironmentForBackend(): Promise<void> {
   const platform = process.platform
-  
+
   if (platform === 'linux') {
     // 检测各种音频后端的可用性
     const hasAlsa = checkAlsa()
     const hasFFplay = checkFFplay()
-    
+
     if (!hasAlsa && !hasFFplay) {
       notificationService.warning(
         '未检测到音频设备',
@@ -281,10 +281,10 @@ async function installPortAudio(): Promise<{ success: boolean; message: string }
       if (msg.includes('sudo') || msg.includes('password') || msg.includes('Password')) {
         notificationService.error(
           '需要 sudo 权限',
-          '# 在WSL终端执行一次\nsudo visudo\n# 添加行：dongx ALL=(ALL) NOPASSWD: ALL',
+          '# 请在WSL终端执行一次\nsudo visudo\n# 添加行：your user name ALL=(ALL) NOPASSWD: ALL',
           10000
         )
-        logger.error({ err }, 'sudo password required')
+        logger.error({ err }, '需要 sudo 权限 请在WSL终端执行一次sudo visudo # 添加行：your user name ALL=(ALL) NOPASSWD: ALL')
         return false
       }
       // 已安装
@@ -548,7 +548,7 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
   }
 
   await ensureNaudiodonCompiled()
-  
+
   // 检测音频环境，每步都加 toast
   await checkAudioEnvironmentForBackend()
 
