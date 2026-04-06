@@ -62,8 +62,8 @@ async function ensureNaudiodonCompiled(): Promise<void> {
   } catch (err) {
     logger.warn({ err }, 'naudiodon rebuild failed, checking for PortAudio')
     notificationService.warning('naudiodon 编译失败', '正在尝试安装 PortAudio...')
-    const installed = installPortAudio()
-    if (installed) {
+    const installed = await installPortAudio()
+    if (installed.success) {
       try {
         const naudiodonPath = dirname(require.resolve('naudiodon'))
         notificationService.info('正在重新编译 naudiodon...', 'Ocosay')
@@ -86,27 +86,142 @@ async function ensureNaudiodonCompiled(): Promise<void> {
   }
 }
 
-function installPortAudio(): boolean {
-  const platform = process.platform
-  logger.info({ platform }, 'installing PortAudio for platform')
-  notificationService.info('正在安装 PortAudio...', `平台: ${platform}`)
-
+function execCmd(cmd: string): { success: boolean; output: string } {
   try {
-    if (platform === 'linux') {
-      execSync('sudo apt-get update && sudo apt-get install -y libportaudio-dev portaudio', { stdio: 'inherit' })
-    } else if (platform === 'darwin') {
-      execSync('brew install portaudio', { stdio: 'inherit' })
-    } else if (platform === 'win32') {
-      execSync('choco install portaudio -y', { stdio: 'inherit' })
-    } else {
-      logger.warn('unsupported platform for automatic PortAudio install')
-      return false
-    }
-    return true
-  } catch (err) {
-    logger.error({ err }, 'failed to install PortAudio automatically')
+    const output = execSync(cmd, { stdio: 'pipe', encoding: 'utf8' })
+    return { success: true, output }
+  } catch (err: any) {
+    return { success: false, output: err.message || '' }
+  }
+}
+
+function isWsl(): boolean {
+  if (process.platform !== 'linux') return false
+  try {
+    return require('fs').readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft')
+  } catch {
     return false
   }
+}
+
+function checkAlsa(): boolean {
+  const result = execCmd('which aplay')
+  if (!result.success) return false
+  const test = execCmd('aplay -l')
+  return test.success && !test.output.includes('no soundcards')
+}
+
+async function installPortAudio(): Promise<{ success: boolean; message: string }> {
+  const platform = process.platform
+  const wsl = isWsl()
+  logger.info({ platform, wsl }, 'installing PortAudio')
+
+  const runInstall = async (cmd: string, desc: string): Promise<boolean> => {
+    logger.info(`Running: ${cmd}`)
+    notificationService.info(desc, '正在安装...')
+
+    try {
+      execSync(cmd, { stdio: 'inherit' })
+      return true
+    } catch (err: any) {
+      const msg = err.message || ''
+      // 检测 sudo 密码失败
+      if (msg.includes('sudo') || msg.includes('password') || msg.includes('Password')) {
+        notificationService.error(
+          '需要 sudo 权限',
+          '请手动运行: sudo apt-get update && sudo apt-get install -y alsa-utils'
+        )
+        logger.error({ err }, 'sudo password required')
+        return false
+      }
+      // 已安装
+      if (msg.includes('already') || msg.includes('is already')) {
+        logger.info('already installed')
+        return true
+      }
+      notificationService.error(desc + ' 失败', msg.substring(0, 100))
+      logger.error({ err }, `install failed: ${desc}`)
+      return false
+    }
+  }
+
+  // Linux / WSL
+  if (platform === 'linux' || wsl) {
+    // 1. 先检测 alsa-utils 是否已有音频设备
+    notificationService.info('检测音频设备...', '音频后端')
+    if (checkAlsa()) {
+      logger.info('alsa-utils already available and working')
+      notificationService.success('alsa-utils 就绪', '音频后端已可用')
+      return { success: true, message: 'alsa' }
+    }
+
+    // 2. 尝试安装 alsa-utils
+    notificationService.info('安装 alsa-utils...', '音频后端')
+    const alsaInstalled = await runInstall(
+      'sudo apt-get update && sudo apt-get install -y alsa-utils',
+      '安装 alsa-utils'
+    )
+    if (alsaInstalled) {
+      // 检测是否真的安装成功
+      if (checkAlsa()) {
+        notificationService.success('alsa-utils 安装成功', '音频后端已就绪')
+        return { success: true, message: 'alsa' }
+      } else {
+        notificationService.warning('alsa-utils 安装后检测失败', '继续尝试其他方案')
+      }
+    }
+
+    // 3. alsa-utils 不可用，再尝试安装 libportaudio-dev
+    notificationService.info('安装 libportaudio-dev...', '音频后端')
+    const portaudioInstalled = await runInstall(
+      'sudo apt-get update && sudo apt-get install -y libportaudio-dev',
+      '安装 libportaudio-dev'
+    )
+    if (portaudioInstalled) {
+      notificationService.success('libportaudio-dev 安装成功', '音频后端已就绪')
+      return { success: true, message: 'portaudio' }
+    }
+
+    notificationService.warning('PortAudio 安装失败', '音频可能无法正常工作')
+    markNaudiodonSkipped()
+    return { success: false, message: 'linux install failed' }
+  }
+
+  // macOS
+  if (platform === 'darwin') {
+    const installed = await runInstall('brew install portaudio', '安装 PortAudio (macOS)')
+    if (installed) {
+      return { success: true, message: 'portaudio' }
+    }
+    markNaudiodonSkipped()
+    return { success: false, message: 'macos install failed' }
+  }
+
+  // Windows - choco
+  if (platform === 'win32') {
+    const installed = await runInstall('choco install portaudio -y', '安装 PortAudio (Windows)')
+    if (installed) {
+      return { success: true, message: 'portaudio' }
+    }
+    markNaudiodonSkipped()
+    return { success: false, message: 'windows install failed' }
+  }
+
+  markNaudiodonSkipped()
+  return { success: false, message: 'unsupported platform' }
+}
+
+function checkNpmNaudiodon(): boolean {
+  try {
+    const naudiodonPath = dirname(require.resolve('naudiodon'))
+    const pkgFile = join(naudiodonPath, 'package.json')
+    if (existsSync(pkgFile)) {
+      return true
+    }
+  } catch {
+    return false
+  }
+  return false
 }
 
 const __filename = fileURLToPath(import.meta.url)

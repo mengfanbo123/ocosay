@@ -106,7 +106,7 @@ export function createBackend(type: BackendType = BackendType.AUTO, options: Bac
     case 'win32':
       return new PowerShellBackend(options)
     default:
-      throw new Error(`Unsupported platform: ${platform}`)
+      return new HowlerBackend(options)
   }
 }
 
