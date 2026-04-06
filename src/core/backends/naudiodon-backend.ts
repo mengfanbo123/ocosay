@@ -8,6 +8,9 @@
  */
 
 import { AudioBackend, AudioBackendEvents, BackendOptions } from './base'
+import { createModuleLogger } from '../../utils/logger'
+
+const logger = createModuleLogger('NaudiodonBackend')
 
 class UnsupportedError extends Error {
   constructor(message: string) {
@@ -67,6 +70,7 @@ export class NaudiodonBackend implements AudioBackend {
     
     try {
       const naudiodon = require('naudiodon') as { AudioIO: AudioIO }
+      logger.debug('naudiodon loaded, creating AudioIO stream')
       
       this.audioStream = naudiodon.AudioIO({
         outOptions: {
@@ -75,17 +79,23 @@ export class NaudiodonBackend implements AudioBackend {
           sampleFormat: 16
         }
       })
+      logger.debug('AudioIO stream created')
       
       this.audioStream.on('error', (error: Error) => {
+        logger.error({ error }, 'AudioIO stream error')
         this.handleError(error)
       })
       
+      logger.debug('calling audioStream.start()')
       this.audioStream.start()
+      logger.info('naudiodon backend started successfully')
+      
       this._started = true
       this._stopped = false
       
       this.events?.onStart?.()
     } catch (error: any) {
+      logger.error({ error }, 'naudiodon start failed')
       if (error.code === 'MODULE_NOT_FOUND') {
         throw new Error('naudiodon is not installed. Run: npm install naudiodon')
       }

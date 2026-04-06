@@ -87,7 +87,7 @@ export function createBackend(type: BackendType = BackendType.AUTO, options: Bac
         return new NaudiodonBackend(options)
       }
     } catch (err) {
-      logger.warn({ err }, 'failed to initialize naudiodon backend')
+      logger.error({ err }, 'failed to initialize naudiodon backend')
     }
   }
   
