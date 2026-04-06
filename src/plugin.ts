@@ -221,102 +221,105 @@ async function verifyModuleLoad(dep: string): Promise<boolean> {
   }
 }
 
-async function fixOptionalDep(dep: string, depPath: string, maxRetries = 5): Promise<boolean> {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    if (await verifyModuleLoad(dep)) {
-      return true
-    }
-
-    logger.info({ attempt, dep }, 'module not loadable, trying rebuild')
-    notificationService.info(`正在编译 ${dep} (${attempt + 1}/${maxRetries})...`, 'Ocosay', 3000)
-
-    try {
-      execSync('npm rebuild', {
-        cwd: depPath,
-        stdio: 'inherit'
-      })
-      logger.info(`${dep} rebuilt`)
-    } catch (err) {
-      logger.warn({ err }, `${dep} rebuild failed`)
-    }
-
-    if (await verifyModuleLoad(dep)) {
-      return true
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 1000))
-  }
-
-  return await verifyModuleLoad(dep)
-}
-
-async function ensureOptionalDepsInstalled(): Promise<void> {
-  const optionalDeps = ['play-sound', 'speaker']
-  const missingDeps: string[] = []
+async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
+  const dep = 'speaker'
   const basePath = dirname(require.resolve('./package.json'))
 
-  for (const dep of optionalDeps) {
-    if (await verifyModuleLoad(dep)) {
-      continue
-    }
-    missingDeps.push(dep)
-  }
-
-  if (missingDeps.length === 0) {
+  if (await verifyModuleLoad(dep)) {
     return
   }
 
-  notificationService.info(
-    `正在安装可选依赖: ${missingDeps.join(', ')}...`,
-    'Ocosay 音频后端',
-    5000
-  )
-
   try {
-    const depsStr = missingDeps.join(' ')
-    logger.info({ deps: depsStr }, 'installing optional dependencies')
-    execSync(`npm install ${depsStr}`, {
+    require.resolve(dep)
+    logger.info('speaker found, rebuilding')
+    notificationService.info('正在编译 speaker...', 'Ocosay 音频后端', 5000)
+    execSync('npm rebuild speaker', {
       cwd: basePath,
       stdio: 'inherit'
     })
-    logger.info('optional dependencies installed')
+    logger.info('speaker rebuilt, verifying...')
+  } catch {
+    logger.info('speaker not found or rebuild failed, installing')
+    notificationService.info('正在安装 speaker...', 'Ocosay 音频后端', 5000)
+  }
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    if (await verifyModuleLoad(dep)) {
+      notificationService.success('speaker 编译成功', '音频后端已就绪', 5000)
+      return
+    }
+
+    logger.info({ attempt, dep }, 'speaker not loadable, trying reinstall')
+    notificationService.info(`正在重新安装 speaker (${attempt + 1}/${maxRetries})...`, 'Ocosay', 3000)
+
+    try {
+      execSync('npm install speaker', {
+        cwd: basePath,
+        stdio: 'inherit'
+      })
+      logger.info('speaker installed')
+    } catch (err) {
+      logger.warn({ err }, 'speaker install failed')
+    }
+
+    if (await verifyModuleLoad(dep)) {
+      notificationService.success('speaker 安装成功', '音频后端已就绪', 5000)
+      return
+    }
+
+    if (attempt < maxRetries - 1) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+  }
+
+  if (await verifyModuleLoad(dep)) {
+    notificationService.success('speaker 编译成功', '音频后端已就绪', 5000)
+  } else {
+    logger.error({ dep }, 'speaker could not be compiled')
+    notificationService.error('speaker 编译失败', '请手动运行: npm install speaker && npm rebuild speaker', 8000)
+  }
+}
+
+async function ensurePlaySoundInstalled(): Promise<void> {
+  const dep = 'play-sound'
+  const basePath = dirname(require.resolve('./package.json'))
+
+  if (await verifyModuleLoad(dep)) {
+    return
+  }
+
+  notificationService.info('正在安装 play-sound...', 'Ocosay 音频后端', 5000)
+
+  try {
+    execSync('npm install play-sound', {
+      cwd: basePath,
+      stdio: 'inherit'
+    })
+    logger.info('play-sound installed')
   } catch (err) {
-    logger.warn({ err }, 'optional dependencies install failed')
+    logger.warn({ err }, 'play-sound install failed')
     notificationService.warning(
-      '可选依赖安装失败',
-      `请手动运行: npm install ${missingDeps.join(' ')}`,
+      'play-sound 安装失败',
+      '请手动运行: npm install play-sound',
       8000
     )
     return
   }
 
-  let allLoaded = true
-  for (const dep of missingDeps) {
-    const depPath = dirname(require.resolve(dep, { paths: [basePath] }))
-    if (await verifyModuleLoad(dep)) {
-      continue
-    }
-
-    notificationService.warning(`${dep} 加载失败，正在尝试编译...`, 'Ocosay', 5000)
-    const fixed = await fixOptionalDep(dep, depPath)
-    if (!fixed) {
-      allLoaded = false
-    }
-  }
-
-  if (allLoaded) {
-    notificationService.success(
-      '可选依赖安装成功',
-      'play-sound & speaker 已就绪',
-      5000
-    )
+  if (await verifyModuleLoad(dep)) {
+    notificationService.success('play-sound 安装成功', '音频后端已就绪', 5000)
   } else {
     notificationService.warning(
-      '部分可选依赖安装失败',
-      `请手动运行: npm install ${missingDeps.join(' ')} && npm rebuild`,
+      'play-sound 安装失败',
+      '请手动运行: npm install play-sound',
       8000
     )
   }
+}
+
+async function ensureOptionalDepsInstalled(): Promise<void> {
+  await ensureSpeakerCompiled()
+  await ensurePlaySoundInstalled()
 }
 
 function execCmd(cmd: string): { success: boolean; output: string } {
