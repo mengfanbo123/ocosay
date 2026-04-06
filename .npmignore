@@ -4,9 +4,13 @@ __mocks__/
 coverage/
 *.test.ts
 *.spec.ts
+*.map
 tsconfig.json
 jest.config.js
 .gitignore
 .git/
+.idea/
+.worktrees/
+.sisyphus/
 *.md
 !README.md

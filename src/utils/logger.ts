@@ -63,3 +63,12 @@ export const logger = pino(
     ...(fileStream ? [{ stream: fileStream as unknown as Writable }] : [])
   ] as pino.StreamEntry[])
 )
+
+/**
+ * 创建带模块后缀的logger
+ * @param module 模块名称，如 'Config', 'Speaker', 'Plugin'
+ * @returns pino logger instance with module context
+ */
+export function createModuleLogger(module: string) {
+  return logger.child({ module })
+}
