@@ -146,6 +146,7 @@ export function loadOrCreateConfig(): OcosayConfig {
     try {
       fs.mkdirSync(configDir, { recursive: true })
     } catch (err) {
+      logger.error({ err }, 'failed to create config directory')
       throw new Error(`[ocosay] 无法创建配置目录 ${configDir}: ${err}`)
     }
   }
@@ -162,6 +163,7 @@ export function loadOrCreateConfig(): OcosayConfig {
         logger.warn({ err }, 'failed to set config file permissions')
       }
     } catch (err) {
+      logger.error({ err }, 'failed to write config file')
       throw new Error(`[ocosay] cannot write config file ${CONFIG_PATH}: ${err}`)
     }
     logger.info({ path: CONFIG_PATH }, 'config file created')

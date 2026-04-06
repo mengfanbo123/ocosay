@@ -224,7 +224,9 @@ export async function destroy(): Promise<void> {
   for (const providerName of listProviders()) {
     try {
       getProvider(providerName)?.destroy()
-    } catch (e) {}
+    } catch (err) {
+      logger.error({ err }, 'provider destroy failed')
+    }
   }
   
   initialized = false

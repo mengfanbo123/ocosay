@@ -18,6 +18,7 @@ import { AfplayBackend } from './afplay-backend'
 import { AplayBackend } from './aplay-backend'
 import { PowerShellBackend } from './powershell-backend'
 import { HowlerBackend } from './howler-backend'
+import { logger } from '../../utils/logger'
 
 /**
  * 后端类型枚举
@@ -40,7 +41,8 @@ async function tryLoadNaudiodon(): Promise<any> {
   try {
     naudiodonCache = await import('naudiodon')
     return naudiodonCache
-  } catch (e) {
+  } catch (err) {
+    logger.warn({ err }, 'failed to load naudiodon module')
     naudiodonCache = false
     return null
   }
@@ -50,7 +52,8 @@ function isNaudiodonAvailable(): boolean {
   try {
     require.resolve('naudiodon')
     return true
-  } catch (e) {
+  } catch (err) {
+    logger.debug({ err }, 'naudiodon not available')
     return false
   }
 }
@@ -83,7 +86,9 @@ export function createBackend(type: BackendType = BackendType.AUTO, options: Bac
       if (naudiodon) {
         return new NaudiodonBackend(options)
       }
-    } catch (e) {}
+    } catch (err) {
+      logger.warn({ err }, 'failed to initialize naudiodon backend')
+    }
   }
   
   switch (platform) {

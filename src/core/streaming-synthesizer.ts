@@ -12,6 +12,7 @@
 
 import { EventEmitter } from 'events'
 import { TTSProvider, TTSError, TTSErrorCode, StreamingSynthesizerOptions, AudioResult } from './types'
+import { logger } from '../utils/logger'
 
 export interface StreamingSynthesizerEvents {
   on(event: 'chunk', handler: (chunk: Buffer) => void): void
@@ -48,6 +49,7 @@ export class StreamingSynthesizer extends EventEmitter {
       
       this.emit('done')
     } catch (error) {
+      logger.error({ error }, 'synthesize failed')
       const ttsError = error instanceof TTSError 
         ? error 
         : new TTSError(
