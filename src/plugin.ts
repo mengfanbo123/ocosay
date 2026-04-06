@@ -5,16 +5,42 @@ import { initialize } from './index.js'
 import { loadOrCreateConfig } from './config.js'
 import { createModuleLogger } from './utils/logger.js'
 import { notificationService } from './core/notification.js'
-
-const logger = createModuleLogger('Plugin')
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync, writeFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { homedir } from 'os'
 import { execSync } from 'child_process'
 import { createRequire } from 'module'
+
+const logger = createModuleLogger('Plugin')
 const require = createRequire(import.meta.url)
 
+function getSkipFilePath(): string {
+  return join(homedir(), '.config', 'opencode', '.naudiodon_skip')
+}
+
+function shouldSkipNaudiodon(): boolean {
+  return existsSync(getSkipFilePath())
+}
+
+function markNaudiodonSkipped(): void {
+  try {
+    const dir = join(homedir(), '.config', 'opencode')
+    if (!existsSync(dir)) {
+      execSync('mkdir -p', { cwd: dir })
+    }
+    writeFileSync(getSkipFilePath(), Date.now().toString(), 'utf-8')
+  } catch {
+    // ignore
+  }
+}
+
 async function ensureNaudiodonCompiled(): Promise<void> {
+  if (shouldSkipNaudiodon()) {
+    logger.info('naudiodon skipped previously, skipping compile attempt')
+    return
+  }
+
   try {
     require('naudiodon')
     logger.info('naudiodon already compiled')
@@ -50,10 +76,12 @@ async function ensureNaudiodonCompiled(): Promise<void> {
         notificationService.success('naudiodon 编译成功', '音频后端已就绪')
       } catch (retryErr) {
         logger.error({ err: retryErr }, 'failed to compile naudiodon even after PortAudio install')
-        notificationService.error('naudiodon 编译失败', '请手动运行: npm rebuild naudiodon')
+        notificationService.error('naudiodon 编译失败', '已跳过，之后不再重试')
+        markNaudiodonSkipped()
       }
     } else {
-      notificationService.error('PortAudio 安装失败', '请手动安装后重试')
+      notificationService.error('PortAudio 安装失败', '已跳过，之后不再重试')
+      markNaudiodonSkipped()
     }
   }
 }
