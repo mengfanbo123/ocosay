@@ -231,11 +231,22 @@ export async function destroy(): Promise<void> {
   autoReadEnabled = false
 }
 
+/**
+ * 显示 Toast 通知
+ * 注意：必须保持方法调用形式 (tui.showToast()) 而不是提取方法后调用 (showToastFn())，
+ * 否则 this 上下文丢失导致 OpenCode 内部 this._client 为 undefined
+ */
 export function showToast(options: { body: { title: string; message: string; variant: 'success' | 'error' | 'info'; duration?: number } }): void {
-  const showToastFn = (global as any).__opencode_tui__?.showToast
-  if (showToastFn) {
+  const tui = (global as any).__opencode_tui__
+  if (tui?.showToast) {
     try {
-      showToastFn(options)
+      // SDK期望直接传参: { title, message, variant, duration }，不是嵌套在body里
+      tui.showToast({
+        title: options.body.title,
+        message: options.body.message,
+        variant: options.body.variant,
+        duration: options.body.duration
+      })
     } catch (err) {
       logger.warn({ err }, 'showToast failed')
     }

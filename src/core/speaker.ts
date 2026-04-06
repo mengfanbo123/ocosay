@@ -21,18 +21,19 @@ import { logger } from '../utils/logger'
 /**
  * Toast 函数 - 统一的Toast通知封装
  * 适配用户期望的格式: toast({ title, body, type })
+ * 注意：必须保持方法调用形式 (tui.showToast()) 而不是提取方法后调用 (showToastFn())，
+ * 否则 this 上下文丢失导致 OpenCode 内部 this._client 为 undefined
  */
 function toast(options: { title: string; body: string; type: 'success' | 'error' | 'info' }): void {
-  const showToastFn = (global as any).__opencode_tui__?.showToast
-  if (showToastFn) {
+  const tui = (global as any).__opencode_tui__
+  if (tui?.showToast) {
     try {
-      showToastFn({
-        body: {
-          title: options.title,
-          message: options.body,
-          variant: options.type,
-          duration: 3000
-        }
+      // SDK期望直接传参: { title, message, variant, duration }，不是 { body: {...} }
+      tui.showToast({
+        title: options.title,
+        message: options.body,
+        variant: options.type,
+        duration: 3000
       })
     } catch (err) {
       logger.warn({ err }, 'toast call failed')
