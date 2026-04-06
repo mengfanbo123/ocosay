@@ -1,0 +1,23 @@
+{
+  "active_plan": "/mnt/d/dev/github/project/ocosay/.sisyphus/plans/ocosay-bugfix.md",
+  "started_at": "2026-04-06T04:31:56.693Z",
+  "session_ids": [
+    "ses_29ef03e01ffejtMhMNV7DezCl3"
+  ],
+  "session_origins": {
+    "ses_29ef03e01ffejtMhMNV7DezCl3": "direct"
+  },
+  "plan_name": "ocosay-bugfix",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "修复 Toast 延迟问题 (P0-1)",
+      "session_id": "ses_29eeeecf1ffezj4STXSyRbAtfl",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-06T04:37:45.676Z"
+    }
+  }
+}

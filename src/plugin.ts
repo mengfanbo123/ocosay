@@ -1,8 +1,8 @@
 import { tool } from '@opencode-ai/plugin'
 import type { Plugin, PluginInput, PluginOptions } from '@opencode-ai/plugin'
-import { handleToolCall } from './index'
-import { initialize, destroy } from './index'
-import { loadOrCreateConfig } from './config'
+import { handleToolCall } from './index.js'
+import { initialize, destroy } from './index.js'
+import { loadOrCreateConfig } from './config.js'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
@@ -11,6 +11,8 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 const pluginName = 'ocosay'
+// 顶层 ID 导出（OpenCode Plugin 标准）
+const id = "ocosay"
 let pluginVersion = '0.0.0'
 try {
   const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
@@ -155,7 +157,7 @@ const ttsStreamStatusTool = tool({
 
 let initError: Error | null = null
 
-const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions) => {
+const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => {
   console.info(`${pluginName}: initializing...`)
 
   const config = loadOrCreateConfig()
@@ -176,13 +178,13 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
     console.error('[Ocosay] initialization failed:', initError)
   }
 
-  // 将 OpenCode 的 showToast 设置到全局，供 speaker.ts 等模块使用
+  // 通过函数参数传递 TUI API，不再使用全局状态污染
   const opencodeShowToast = input.client?.tui?.showToast
-  if (opencodeShowToast) {
-    (global as any).__opencode_tui_showToast__ = opencodeShowToast
-  }
 
-  // 插件初始化完成后立即显示 Toast（延迟 1 秒等待 TUI 渲染）
+  // 将 toast 函数共享给其他模块（speaker.ts, index.ts）
+  ;(global as any).__opencode_tui_showToast__ = opencodeShowToast
+
+  // 插件初始化完成后立即显示 Toast（延迟 7 秒等待 TUI 渲染）
   setTimeout(async () => {
     if (!opencodeShowToast) return
     if (initError) {
@@ -204,7 +206,7 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
         }
       })
     }
-  }, 1000)
+  }, 7000)
 
   return {
     tool: {
@@ -255,11 +257,6 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
         }
       }
 
-      // 将 OpenCode 的 showToast 设置到全局，供 speaker.ts 等模块使用
-      if (input.client?.tui?.showToast) {
-        (global as any).__opencode_tui_showToast__ = input.client.tui.showToast
-      }
-
       setTimeout(async () => {
         const showToastFn = input.client?.tui?.showToast
         if (!showToastFn) {
@@ -286,13 +283,18 @@ const OcosayPlugin: Plugin = async (input: PluginInput, _options?: PluginOptions
             }
           })
         }
-      }, 1000)
+      }, 7000)
     },
-    config: async () => {
-      return
+    config: async (opencodeConfig) => {
+      opencodeConfig.command ??= {}
+      opencodeConfig.command['tts'] = {
+        template: '',
+        description: 'TTS playback control'
+      }
     }
   }
-}
+}) satisfies Plugin
 
-export const server = OcosayPlugin
-export default OcosayPlugin
+// OpenCode Plugin 标准导出格式
+export { id, server }
+export default { id, server }

@@ -9,6 +9,7 @@
 
 import { EventEmitter } from 'events'
 import { StreamState, TTSError, TTSErrorCode } from './types'
+import { logger } from '../utils/logger'
 
 export class StreamReader extends EventEmitter {
   private state: StreamState = StreamState.IDLE
@@ -46,10 +47,12 @@ export class StreamReader extends EventEmitter {
       this.messageID = messageID
       this.partID = partID
       this.emit('streamStart')
+      logger.debug({ sessionID, messageID, partID }, 'Stream started')
     }
     
     this.buffer += delta
     this.resetTimeout()
+    logger.debug({ deltaLength: delta.length, bufferLength: this.buffer.length }, 'Delta received')
     
     if (this.shouldFlush()) {
       this.flushBuffer()

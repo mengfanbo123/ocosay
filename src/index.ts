@@ -6,6 +6,7 @@ import { TTSError, TTSErrorCode } from './core/types'
 import { StreamReader } from './core/stream-reader'
 import { StreamingSynthesizer } from './core/streaming-synthesizer'
 import { StreamPlayer } from './core/stream-player'
+import { logger } from './utils/logger'
 
 export const pluginInfo = {
   name: 'ocosay',
@@ -36,32 +37,39 @@ export interface InitializeOptions {
 
 export async function initialize(config?: InitializeOptions): Promise<void> {
   if (initialized) {
+    logger.warn('Ocosay already initialized')
     return
   }
 
-  if (config?.providers?.minimax) {
-    if (!config.providers.minimax.apiKey) {
-      throw new Error('[ocosay] API Key is required. Please set minimax.apiKey in ~/.config/opencode/ocosay.jsonc')
+  try {
+    if (config?.providers?.minimax) {
+      if (!config.providers.minimax.apiKey) {
+        throw new Error('API Key is required. Please set minimax.apiKey in ~/.config/opencode/ocosay.jsonc')
+      }
+      const minimaxProvider = new MiniMaxProvider(config.providers.minimax)
+      registerProvider('minimax', minimaxProvider)
+      await minimaxProvider.initialize()
     }
-    const minimaxProvider = new MiniMaxProvider(config.providers.minimax)
-    registerProvider('minimax', minimaxProvider)
-    await minimaxProvider.initialize()
+    
+    const speakerOptions: SpeakerOptions = {
+      defaultProvider: config?.defaultProvider || 'minimax',
+      defaultModel: config?.defaultModel || 'stream',
+      defaultVoice: config?.defaultVoice
+    }
+    
+    speaker = new Speaker(speakerOptions)
+    
+    if (config?.autoRead) {
+      autoReadEnabled = true
+      initializeStreamComponents(config)
+    }
+    
+    initialized = true
+    logger.info({ autoRead: autoReadEnabled }, 'Ocosay initialized successfully')
+  } catch (error) {
+    logger.error({ error }, 'Ocosay initialization failed')
+    throw error
   }
-  
-  const speakerOptions: SpeakerOptions = {
-    defaultProvider: config?.defaultProvider || 'minimax',
-    defaultModel: config?.defaultModel || 'stream',
-    defaultVoice: config?.defaultVoice
-  }
-  
-  speaker = new Speaker(speakerOptions)
-  
-  if (config?.autoRead) {
-    autoReadEnabled = true
-    initializeStreamComponents(config)
-  }
-  
-  initialized = true
 }
 
 function initializeStreamComponents(config: InitializeOptions): void {
@@ -222,7 +230,7 @@ export async function destroy(): Promise<void> {
 }
 
 // 导出 showToast 函数到全局，供 Speaker.play() 使用
-export function showToast(options: { body: { title: string; message: string; variant: 'success' | 'error' | 'info' } }): void {
+export function showToast(options: { body: { title: string; message: string; variant: 'success' | 'error' | 'info'; duration?: number } }): void {
   const showToastFn = (global as any).__opencode_tui_showToast__
   if (showToastFn) {
     try {

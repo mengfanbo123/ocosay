@@ -16,6 +16,7 @@ import {
 } from './types'
 import { getProvider, listProviders, hasProvider } from '../providers/base'
 import { AudioPlayer, PlayerEvents } from './player'
+import { logger } from '../utils/logger'
 
 export interface SpeakerOptions {
   defaultProvider?: string
@@ -53,11 +54,12 @@ export class Speaker extends EventEmitter {
               body: {
                 title: '🎙️ TTS',
                 message: 'Playback completed',
-                variant: 'success'
+                variant: 'success',
+                duration: 3000
               }
             })
           } catch (err) {
-            // Toast 失败不影响流程
+            console.warn('[Speaker] Toast playback completed failed:', err)
           }
         }
       },
@@ -114,11 +116,12 @@ export class Speaker extends EventEmitter {
           body: {
             title: '🎙️ TTS',
             message: `Playing: ${text.substring(0, 30)}...`,
-            variant: 'info'
+            variant: 'info',
+            duration: 3000
           }
         })
       } catch (err) {
-        // Toast 失败不影响播放
+        console.warn('[Speaker] Toast playback start failed:', err)
       }
     }
     
@@ -148,6 +151,7 @@ export class Speaker extends EventEmitter {
       // 播放音频
       if (this.player) {
         await this.player.play(result.audioData, result.format)
+        logger.info({ textLength: text.length, model: options.model }, 'TTS playback completed')
       }
       
     } catch (error) {
@@ -161,11 +165,12 @@ export class Speaker extends EventEmitter {
             body: {
               title: '🎙️ TTS',
               message: 'Playback failed, please check config',
-              variant: 'error'
+              variant: 'error',
+              duration: 3000
             }
           })
         } catch (err) {
-          // Toast 失败不影响流程
+          console.warn('[Speaker] Toast playback failed:', err)
         }
       }
 

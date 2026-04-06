@@ -19,10 +19,31 @@ function extractTextArg(args: unknown): string | undefined {
     return undefined
   }
   const argObj = args as Record<string, unknown>
+
+  // 优先使用 text 属性
   const text = argObj.text
   if (typeof text === 'string' && text.trim().length > 0) {
-    return text
+    return text.trim()
   }
+
+  // 检查 text7 (OpenCode 框架可能传递)
+  const text7 = argObj.text7
+  if (typeof text7 === 'string' && text7.trim().length > 0) {
+    console.warn('[tts] Received text7 instead of text from OpenCode framework')
+    return text7.trim()
+  }
+
+  // 遍历所有 text 开头的属性，找到第一个有效字符串
+  for (const key of Object.keys(argObj)) {
+    if (key.startsWith('text') && key !== 'text' && key !== 'text7') {
+      const val = argObj[key]
+      if (typeof val === 'string' && val.trim().length > 0) {
+        console.debug(`[tts] Using ${key} as text source`)
+        return val.trim()
+      }
+    }
+  }
+
   if (text !== undefined) {
     console.warn('[tts] text arg is not a valid string, type:', typeof text, 'value:', String(text).substring(0, 100))
   }
