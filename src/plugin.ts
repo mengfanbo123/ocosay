@@ -210,6 +210,15 @@ async function ensureNaudiodonCompiled(): Promise<void> {
   }
 }
 
+function isModuleInstalled(moduleName: string): boolean {
+  try {
+    require.resolve(moduleName)
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function verifyModuleLoad(dep: string): Promise<boolean> {
   try {
     require(dep)
@@ -225,33 +234,29 @@ async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
   const dep = 'speaker'
   const basePath = dirname(require.resolve('./package.json'))
 
-  if (await verifyModuleLoad(dep)) {
-    return
-  }
-
-  try {
-    require.resolve(dep)
-    logger.info('speaker found, rebuilding')
+  if (isModuleInstalled(dep)) {
+    logger.info('speaker already installed')
+    if (await verifyModuleLoad(dep)) {
+      return
+    }
+    logger.info('speaker installed but not loadable, rebuilding')
     notificationService.info('正在编译 speaker...', 'Ocosay 音频后端', 5000)
-    execSync('npm rebuild speaker', {
-      cwd: basePath,
-      stdio: 'inherit'
-    })
-    logger.info('speaker rebuilt, verifying...')
-  } catch {
-    logger.info('speaker not found or rebuild failed, installing')
-    notificationService.info('正在安装 speaker...', 'Ocosay 音频后端', 5000)
-  }
-
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      execSync('npm rebuild speaker', {
+        cwd: basePath,
+        stdio: 'inherit'
+      })
+      logger.info('speaker rebuilt')
+    } catch (err) {
+      logger.warn({ err }, 'speaker rebuild failed')
+    }
     if (await verifyModuleLoad(dep)) {
       notificationService.success('speaker 编译成功', '音频后端已就绪', 5000)
       return
     }
-
-    logger.info({ attempt, dep }, 'speaker not loadable, trying reinstall')
-    notificationService.info(`正在重新安装 speaker (${attempt + 1}/${maxRetries})...`, 'Ocosay', 3000)
-
+  } else {
+    logger.info('speaker not found, installing')
+    notificationService.info('正在安装 speaker...', 'Ocosay 音频后端', 5000)
     try {
       execSync('npm install speaker', {
         cwd: basePath,
@@ -261,9 +266,29 @@ async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
     } catch (err) {
       logger.warn({ err }, 'speaker install failed')
     }
+  }
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    if (await verifyModuleLoad(dep)) {
+      notificationService.success('speaker 编译成功', '音频后端已就绪', 5000)
+      return
+    }
+
+    logger.info({ attempt, dep }, 'speaker not loadable, trying rebuild')
+    notificationService.info(`正在重新编译 speaker (${attempt + 1}/${maxRetries})...`, 'Ocosay', 3000)
+
+    try {
+      execSync('npm rebuild speaker', {
+        cwd: basePath,
+        stdio: 'inherit'
+      })
+      logger.info('speaker rebuilt')
+    } catch (err) {
+      logger.warn({ err }, 'speaker rebuild failed')
+    }
 
     if (await verifyModuleLoad(dep)) {
-      notificationService.success('speaker 安装成功', '音频后端已就绪', 5000)
+      notificationService.success('speaker 编译成功', '音频后端已就绪', 5000)
       return
     }
 
@@ -272,22 +297,22 @@ async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
     }
   }
 
-  if (await verifyModuleLoad(dep)) {
-    notificationService.success('speaker 编译成功', '音频后端已就绪', 5000)
-  } else {
-    logger.error({ dep }, 'speaker could not be compiled')
-    notificationService.error('speaker 编译失败', '请手动运行: npm install speaker && npm rebuild speaker', 8000)
-  }
+  logger.error({ dep }, 'speaker could not be compiled')
+  notificationService.error('speaker 编译失败', '请手动运行: npm install speaker && npm rebuild speaker', 8000)
 }
 
 async function ensurePlaySoundInstalled(): Promise<void> {
   const dep = 'play-sound'
   const basePath = dirname(require.resolve('./package.json'))
 
-  if (await verifyModuleLoad(dep)) {
-    return
+  if (isModuleInstalled(dep)) {
+    logger.info('play-sound already installed')
+    if (await verifyModuleLoad(dep)) {
+      return
+    }
   }
 
+  logger.info('play-sound not found, installing')
   notificationService.info('正在安装 play-sound...', 'Ocosay 音频后端', 5000)
 
   try {
