@@ -32,11 +32,22 @@ function extractTextArg(args: unknown): string | undefined {
       logger.warn('received text7 instead of text from OpenCode framework')
       return text7.trim()
     }
-    if (typeof text7 === 'object' && 'content' in text7) {
-      const content = (text7 as any).content
-      if (typeof content === 'string' && content.trim().length > 0) {
-        logger.warn('text7 is an object with content field')
-        return content.trim()
+    if (typeof text7 === 'object') {
+      // Handle { split: true, content: "..." } format
+      if ('split' in text7 && 'content' in text7) {
+        const content = (text7 as any).content
+        if (typeof content === 'string' && content.trim().length > 0) {
+          logger.info('text7 split format detected')
+          return content.trim()
+        }
+      }
+      // Handle simple { content: "..." } format
+      if ('content' in text7) {
+        const content = (text7 as any).content
+        if (typeof content === 'string' && content.trim().length > 0) {
+          logger.info('text7 content format detected')
+          return content.trim()
+        }
       }
     }
     logger.warn({ type: typeof text7 }, 'text7 is not a valid string or object with content')
