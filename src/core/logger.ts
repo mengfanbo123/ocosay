@@ -150,8 +150,12 @@ export class Logger {
   }
 }
 
-/** 默认 Logger 实例，仅输出到控制台 */
+import { homedir } from 'os';
+import { join } from 'path';
+
+const logPath = join(homedir(), '.ocosay', 'ocosay.log');
 export const logger = new Logger({
-  minLevel: LogLevel.INFO,
+  minLevel: LogLevel.DEBUG,
   console: true,
+  filePath: logPath,
 });

@@ -139,12 +139,14 @@ function initializeStreamComponents(config: InitializeOptions): void {
     let messagePartEndHandler: (() => void) | undefined
     
     messagePartDeltaHandler = (event: any) => {
+      const delta = event?.properties?.delta
+      logger.debug({ delta, type: typeof delta }, 'Delta event received')
       if (event?.properties) {
         streamReader?.handleDelta(
           event.sessionId || '',
           event.messageId || '',
           event.partId || '',
-          event.properties.delta || ''
+          delta || ''
         )
       }
     }
