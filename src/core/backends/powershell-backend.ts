@@ -16,6 +16,15 @@ const SAFE_PATH_REGEX = /^[\w\:\\_.]+$/i
 
 // WSL 路径转换为 Windows 路径
 function wslPathToWindows(wslPath: string): string {
+  // 处理 WSL 特有路径格式 (/tmp, /var/tmp) -> \\wsl$\路径格式
+  // 这样 Windows 应用可以访问 WSL 文件系统
+  if (wslPath.startsWith('/tmp/')) {
+    return '\\\\wsl$\\Ubuntu\\tmp\\' + wslPath.slice(5).replace(/\//g, '\\')
+  }
+  if (wslPath.startsWith('/var/tmp/')) {
+    return '\\\\wsl$\\Ubuntu\\var\\tmp\\' + wslPath.slice(9).replace(/\//g, '\\')
+  }
+  // 处理标准的 /mnt/x/ 格式
   return wslPath
     .replace(/^\/mnt\/([a-z])\//, '$1:/')
     .replace(/\//g, '\\')
