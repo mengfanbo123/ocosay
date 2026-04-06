@@ -11,6 +11,8 @@ export { AfplayBackend } from './afplay-backend'
 export { AplayBackend } from './aplay-backend'
 export { PowerShellBackend } from './powershell-backend'
 export { HowlerBackend } from './howler-backend'
+export { PlaySoundBackend } from './playsound-backend'
+export { SpeakerBackend } from './speaker-backend'
 
 import { execSync } from 'child_process'
 import { AudioBackend, BackendOptions } from './base'
@@ -19,6 +21,8 @@ import { AfplayBackend } from './afplay-backend'
 import { AplayBackend } from './aplay-backend'
 import { PowerShellBackend } from './powershell-backend'
 import { HowlerBackend } from './howler-backend'
+import { PlaySoundBackend } from './playsound-backend'
+import { SpeakerBackend } from './speaker-backend'
 import { logger } from '../../utils/logger'
 
 function execCmd(cmd: string): { success: boolean; output: string } {
@@ -43,6 +47,8 @@ export enum BackendType {
   APLAY = 'aplay',
   POWERSHELL = 'powershell',
   HOWLER = 'howler',
+  PLAY_SOUND = 'play-sound',
+  SPEAKER = 'speaker',
   AUTO = 'auto'
 }
 
@@ -68,6 +74,16 @@ function isNaudiodonAvailable(): boolean {
     return true
   } catch (err) {
     logger.debug({ err }, 'naudiodon not available')
+    return false
+  }
+}
+
+function isSpeakerAvailable(): boolean {
+  try {
+    require.resolve('speaker')
+    return true
+  } catch (err) {
+    logger.debug({ err }, 'speaker not available')
     return false
   }
 }
@@ -98,12 +114,23 @@ export function createBackend(type: BackendType = BackendType.AUTO, options: Bac
     case 'darwin':
       return new AfplayBackend(options)
     case 'linux':
+      // Linux 环境检测顺序：naudiodon → aplay → play-sound → speaker → Howler
       if (isCommandAvailable('aplay')) {
         const test = execCmd('aplay -l')
         if (test.success && !test.output.includes('no soundcards')) {
           return new AplayBackend(options)
         }
       }
+      // 检测 play-sound (ffplay)
+      if (isCommandAvailable('ffplay')) {
+        return new PlaySoundBackend(options)
+      }
+      // 检测 speaker (需要 speaker npm 包)
+      if (isSpeakerAvailable()) {
+        return new SpeakerBackend(options)
+      }
+      // 彻底失败，使用 Howler 作为最后的回退
+      logger.warn('All Linux audio backends failed, using HowlerBackend as fallback')
       return new HowlerBackend(options)
     case 'win32':
       return new PowerShellBackend(options)
@@ -124,6 +151,10 @@ function createBackendByType(type: BackendType, options: BackendOptions): AudioB
       return new PowerShellBackend(options)
     case BackendType.HOWLER:
       return new HowlerBackend(options)
+    case BackendType.PLAY_SOUND:
+      return new PlaySoundBackend(options)
+    case BackendType.SPEAKER:
+      return new SpeakerBackend(options)
     default:
       throw new Error(`Unknown backend type: ${type}`)
   }
@@ -133,7 +164,7 @@ export function supportsStreaming(type: BackendType): boolean {
   if (type === BackendType.AUTO) {
     return isNaudiodonAvailable()
   }
-  return type === BackendType.NAUDIODON
+  return type === BackendType.NAUDIODON || type === BackendType.SPEAKER
 }
 
 export function getDefaultBackendType(): BackendType {

@@ -235,6 +235,34 @@ function checkAlsa(): boolean {
   return test.success && !test.output.includes('no soundcards')
 }
 
+function checkFFplay(): boolean {
+  return execCmd('which ffplay').success
+}
+
+async function checkAudioEnvironmentForBackend(): Promise<void> {
+  const platform = process.platform
+  
+  if (platform === 'linux') {
+    // 检测各种音频后端的可用性
+    const hasAlsa = checkAlsa()
+    const hasFFplay = checkFFplay()
+    
+    if (!hasAlsa && !hasFFplay) {
+      notificationService.warning(
+        '未检测到音频设备',
+        '请安装 ffmpeg 或配置 PulseAudio',
+        8000
+      )
+    } else if (hasFFplay && !hasAlsa) {
+      notificationService.info(
+        'ffplay 可用',
+        '将使用 ffplay 进行无声卡播放',
+        5000
+      )
+    }
+  }
+}
+
 async function installPortAudio(): Promise<{ success: boolean; message: string }> {
   const platform = process.platform
   const wsl = isWsl()
@@ -272,6 +300,27 @@ async function installPortAudio(): Promise<{ success: boolean; message: string }
 
   // Linux / WSL
   if (platform === 'linux' || wsl) {
+    // 0. 检测 ffmpeg (支持无声卡播放，play-sound 后端依赖)
+    notificationService.info('检测 ffmpeg...', '音频后端', 5000)
+    const ffmpegCheck = execCmd('which ffplay')
+    if (ffmpegCheck.success) {
+      logger.info('ffmpeg already available')
+      notificationService.success('ffmpeg 就绪', 'ffplay 可用于无声卡播放', 5000)
+      // ffmpeg 可用，继续检测音频设备
+    } else {
+      // 尝试安装 ffmpeg
+      notificationService.info('安装 ffmpeg...', '音频后端', 5000)
+      const ffmpegInstalled = await runInstall(
+        'sudo apt-get update && sudo apt-get install -y ffmpeg',
+        '安装 ffmpeg'
+      )
+      if (ffmpegInstalled) {
+        notificationService.success('ffmpeg 安装成功', 'ffplay 可用于无声卡播放', 5000)
+      } else {
+        notificationService.warning('ffmpeg 安装失败', 'play-sound 后端可能无法工作', 5000)
+      }
+    }
+
     // 1. 先检测 alsa-utils 是否已有音频设备
     notificationService.info('检测音频设备...', '音频后端', 5000)
     if (checkAlsa()) {
@@ -334,19 +383,6 @@ async function installPortAudio(): Promise<{ success: boolean; message: string }
 
   markNaudiodonSkipped()
   return { success: false, message: 'unsupported platform' }
-}
-
-function checkNpmNaudiodon(): boolean {
-  try {
-    const naudiodonPath = dirname(require.resolve('naudiodon'))
-    const pkgFile = join(naudiodonPath, 'package.json')
-    if (existsSync(pkgFile)) {
-      return true
-    }
-  } catch {
-    return false
-  }
-  return false
 }
 
 const __filename = fileURLToPath(import.meta.url)
@@ -512,6 +548,9 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
   }
 
   await ensureNaudiodonCompiled()
+  
+  // 检测音频环境，每步都加 toast
+  await checkAudioEnvironmentForBackend()
 
   setTimeout(() => {
     if (initError) {

@@ -1,6 +1,6 @@
 {
   "name": "@mingxy/ocosay",
-"version": "1.1.12",
+"version": "1.1.13",
   "description": "OpenCode TTS 播放插件 - 支持豆包模式边接收边朗读",
   "type": "module",
   "main": "dist/plugin.js",
@@ -26,7 +26,7 @@
   },
   "scripts": {
     "build": "tsc && npm run build:plugin && node -e \"require('fs').copyFileSync('package.json', 'dist/package.json')\"",
-    "build:plugin": "esbuild src/plugin.ts --bundle --platform=node --format=esm --outdir=dist --sourcemap --external:@opencode-ai/plugin --external:axios --external:ws --external:zod",
+    "build:plugin": "esbuild src/plugin.ts --bundle --platform=node --format=esm --outdir=dist --sourcemap --external:@opencode-ai/plugin --external:axios --external:ws --external:zod --external:naudiodon --external:play-sound --external:speaker",
     "watch": "tsc --watch",
     "test": "jest",
     "lint": "eslint src --ext .ts"
@@ -48,7 +48,9 @@
     "zod": "^4.3.6"
   },
   "optionalDependencies": {
-    "naudiodon": "^2.3.6"
+    "naudiodon": "^2.3.6",
+    "play-sound": "^1.1.5",
+    "speaker": "^1.4.2"
   },
   "devDependencies": {
     "@types/howler": "^2.2.12",
