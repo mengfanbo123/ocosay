@@ -1,7 +1,9 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
-import { logger } from './utils/logger'
+import { createModuleLogger } from './utils/logger'
+
+const logger = createModuleLogger('Config')
 
 // OcosayConfig 类型定义
 export interface OcosayConfig {

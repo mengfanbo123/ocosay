@@ -16,7 +16,9 @@ import {
 } from './types'
 import { getProvider, listProviders, hasProvider } from '../providers/base'
 import { AudioPlayer, PlayerEvents } from './player'
-import { logger } from '../utils/logger'
+import { createModuleLogger } from '../utils/logger'
+
+const logger = createModuleLogger('Speaker')
 
 /**
  * Toast 函数 - 统一的Toast通知封装

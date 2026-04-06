@@ -5,7 +5,9 @@
 
 import { speak, stop, pause, resume, listVoices, getDefaultSpeaker } from '../core/speaker'
 import { TTSError, TTSErrorCode } from '../core/types'
-import { logger } from '../utils/logger'
+import { createModuleLogger } from '../utils/logger'
+
+const logger = createModuleLogger('TTS')
 import { 
   isStreamEnabled, 
   isAutoReadEnabled,

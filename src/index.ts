@@ -6,7 +6,9 @@ import { TTSError, TTSErrorCode } from './core/types'
 import { StreamReader } from './core/stream-reader'
 import { StreamingSynthesizer } from './core/streaming-synthesizer'
 import { StreamPlayer } from './core/stream-player'
-import { logger } from './utils/logger'
+import { createModuleLogger } from './utils/logger'
+
+const logger = createModuleLogger('Index')
 
 export const pluginInfo = {
   name: 'ocosay',

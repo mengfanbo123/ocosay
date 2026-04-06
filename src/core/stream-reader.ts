@@ -9,7 +9,9 @@
 
 import { EventEmitter } from 'events'
 import { StreamState, TTSError, TTSErrorCode } from './types'
-import { logger } from '../utils/logger'
+import { createModuleLogger } from '../utils/logger'
+
+const logger = createModuleLogger('StreamReader')
 
 export class StreamReader extends EventEmitter {
   private state: StreamState = StreamState.IDLE

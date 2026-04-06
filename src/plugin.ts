@@ -3,7 +3,9 @@ import type { Plugin, PluginInput, PluginOptions } from '@opencode-ai/plugin'
 import { handleToolCall } from './index.js'
 import { initialize } from './index.js'
 import { loadOrCreateConfig } from './config.js'
-import { logger } from './utils/logger.js'
+import { createModuleLogger } from './utils/logger.js'
+
+const logger = createModuleLogger('Plugin')
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
