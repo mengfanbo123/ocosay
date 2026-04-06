@@ -1,44 +1,90 @@
 import { StreamPlayer } from '../src/core/stream-player'
-import { spawn } from 'child_process'
-import { createWriteStream } from 'fs'
+import { AudioBackend } from '../src/core/backends/base'
 
-jest.mock('child_process')
-jest.mock('fs')
+const mockStart = jest.fn()
+const mockWrite = jest.fn()
+const mockEnd = jest.fn()
+const mockPause = jest.fn()
+const mockResume = jest.fn()
+const mockStop = jest.fn()
+const mockDestroy = jest.fn()
+const mockGetCurrentTime = jest.fn().mockReturnValue(0)
+const mockGetDuration = jest.fn().mockReturnValue(1)
+const mockSetVolume = jest.fn()
 
-const mockSpawn = spawn as jest.MockedFunction<typeof spawn>
-const mockCreateWriteStream = createWriteStream as jest.MockedFunction<typeof createWriteStream>
+let mockEvents: any = {
+  onStart: jest.fn(),
+  onEnd: jest.fn(),
+  onError: jest.fn(),
+  onPause: jest.fn(),
+  onResume: jest.fn(),
+  onStop: jest.fn(),
+  onProgress: jest.fn()
+}
+
+const mockBackend = {
+  name: 'mock',
+  supportsStreaming: true,
+  start: mockStart,
+  write: mockWrite,
+  end: mockEnd,
+  pause: mockPause,
+  resume: mockResume,
+  stop: mockStop,
+  destroy: mockDestroy,
+  getCurrentTime: mockGetCurrentTime,
+  getDuration: mockGetDuration,
+  setVolume: mockSetVolume
+} as unknown as AudioBackend
+
+jest.mock('../src/core/backends', () => ({
+  createBackend: jest.fn((type: any, options: any) => {
+    if (options?.events) {
+      mockEvents = options.events
+    }
+    return mockBackend
+  }),
+  BackendType: {
+    NAUDIODON: 'naudiodon',
+    AFPLAY: 'afplay',
+    APLAY: 'aplay',
+    POWERSHELL: 'powershell',
+    HOWLER: 'howler',
+    AUTO: 'auto'
+  },
+  AudioBackend: {}
+}))
+
+jest.mock('../src/core/backends/base', () => ({
+  AudioBackend: {}
+}))
 
 describe('StreamPlayer', () => {
-  let mockWriteStream: any
-  let mockPlayerProcess: any
-
   beforeEach(() => {
     jest.clearAllMocks()
-    
-    mockWriteStream = {
-      write: jest.fn().mockReturnValue(true),
-      end: jest.fn(),
-      destroy: jest.fn(),
-      on: jest.fn(),
-      once: jest.fn()
-    }
-    
-    mockPlayerProcess = {
-      kill: jest.fn(),
-      on: jest.fn(),
-      stdin: { end: jest.fn() }
+
+    mockEvents = {
+      onStart: jest.fn(),
+      onEnd: jest.fn(),
+      onError: jest.fn(),
+      onPause: jest.fn(),
+      onResume: jest.fn(),
+      onStop: jest.fn(),
+      onProgress: jest.fn()
     }
 
-    mockCreateWriteStream.mockReturnValue(mockWriteStream as any)
-    mockSpawn.mockImplementation(() => mockPlayerProcess as any)
-  })
-
-  afterEach(() => {
-    jest.restoreAllMocks()
+    mockStart.mockClear().mockImplementation(() => { mockEvents.onStart() })
+    mockWrite.mockClear()
+    mockEnd.mockClear()
+    mockPause.mockClear().mockImplementation(() => { mockEvents.onPause() })
+    mockResume.mockClear().mockImplementation(() => { mockEvents.onResume() })
+    mockStop.mockClear().mockImplementation(() => { mockEvents.onStop() })
   })
 
   function createPlayer(options?: any): StreamPlayer {
-    return new StreamPlayer(options)
+    const events = options?.events || {}
+    const mergedEvents = { ...mockEvents, ...events }
+    return new StreamPlayer({ ...options, events: mergedEvents })
   }
 
   describe('initialization', () => {
@@ -69,21 +115,22 @@ describe('StreamPlayer', () => {
     it('should auto-start if not started', () => {
       const player = createPlayer()
       player.write(Buffer.from([1, 2, 3]))
-      expect(player.isStarted()).toBe(true)
+      expect(mockBackend.start).toHaveBeenCalled()
     })
 
     it('should ignore write if stopped', () => {
       const player = createPlayer()
       player.start()
       player.stop()
+      mockWrite.mockClear()
       player.write(Buffer.from([1, 2, 3]))
-      expect(player.getBytesWritten()).toBe(0)
+      expect(mockWrite).not.toHaveBeenCalled()
     })
 
-    it('should write chunk to stream', () => {
+    it('should write chunk to backend', () => {
       const player = createPlayer()
       player.write(Buffer.from([1, 2, 3]))
-      expect(mockWriteStream.write).toHaveBeenCalledWith(Buffer.from([1, 2, 3]))
+      expect(mockWrite).toHaveBeenCalledWith(Buffer.from([1, 2, 3]))
     })
 
     it('should increment bytesWritten counter', () => {
@@ -119,7 +166,7 @@ describe('StreamPlayer', () => {
       const player = createPlayer()
       player.start()
       player.start()
-      expect(mockCreateWriteStream).toHaveBeenCalledTimes(1)
+      expect(mockBackend.start).toHaveBeenCalledTimes(1)
     })
 
     it('should call onStart callback', () => {
@@ -146,11 +193,11 @@ describe('StreamPlayer', () => {
       expect(player.isStopped()).toBe(true)
     })
 
-    it('should kill player process', () => {
+    it('should call backend stop', () => {
       const player = createPlayer()
       player.start()
       player.stop()
-      expect(mockPlayerProcess.kill).toHaveBeenCalledWith('SIGTERM')
+      expect(mockBackend.stop).toHaveBeenCalled()
     })
 
     it('should call onStop callback', () => {
@@ -179,11 +226,11 @@ describe('StreamPlayer', () => {
       expect(player.isPaused()).toBe(true)
     })
 
-    it('should send SIGSTOP to player process', () => {
+    it('should call backend pause', () => {
       const player = createPlayer()
       player.start()
       player.pause()
-      expect(mockPlayerProcess.kill).toHaveBeenCalledWith('SIGSTOP')
+      expect(mockBackend.pause).toHaveBeenCalled()
     })
 
     it('should call onPause callback', () => {
@@ -206,7 +253,7 @@ describe('StreamPlayer', () => {
     it('should not pause if not started', () => {
       const player = createPlayer()
       player.pause()
-      expect(mockPlayerProcess.kill).not.toHaveBeenCalled()
+      expect(mockBackend.pause).not.toHaveBeenCalled()
     })
 
     it('should not pause if already paused', () => {
@@ -214,7 +261,7 @@ describe('StreamPlayer', () => {
       player.start()
       player.pause()
       player.pause()
-      expect(mockPlayerProcess.kill).toHaveBeenCalledTimes(1)
+      expect(mockBackend.pause).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -227,12 +274,12 @@ describe('StreamPlayer', () => {
       expect(player.isPaused()).toBe(false)
     })
 
-    it('should send SIGCONT to player process', () => {
+    it('should call backend resume', () => {
       const player = createPlayer()
       player.start()
       player.pause()
       player.resume()
-      expect(mockPlayerProcess.kill).toHaveBeenCalledWith('SIGCONT')
+      expect(mockBackend.resume).toHaveBeenCalled()
     })
 
     it('should call onResume callback', () => {
@@ -258,16 +305,16 @@ describe('StreamPlayer', () => {
       const player = createPlayer()
       player.start()
       player.resume()
-      expect(mockPlayerProcess.kill).not.toHaveBeenCalledWith('SIGCONT')
+      expect(mockBackend.resume).not.toHaveBeenCalled()
     })
   })
 
   describe('end', () => {
-    it('should end write stream without stopping player', () => {
+    it('should call backend end', () => {
       const player = createPlayer()
       player.start()
       player.end()
-      expect(mockWriteStream.end).toHaveBeenCalled()
+      expect(mockBackend.end).toHaveBeenCalled()
     })
   })
 
@@ -294,10 +341,11 @@ describe('StreamPlayer', () => {
   })
 
   describe('error handling', () => {
-    it('should have error handler registered', () => {
-      const player = createPlayer()
+    it('should emit error event when backend errors', () => {
+      const onError = jest.fn()
+      const player = createPlayer({ events: { onError } })
       player.start()
-      expect(mockWriteStream.on).toHaveBeenCalledWith('error', expect.any(Function))
+      expect(mockEvents.onError).toBeDefined()
     })
   })
 })

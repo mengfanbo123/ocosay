@@ -3,7 +3,8 @@
  * 用于 OpenCode Plugin 注册
  */
 
-import { speak, stop, pause, resume, listVoices, getDefaultSpeaker } from '../core/speaker'
+import { speak, stop, pause, resume, listVoices, getDefaultSpeakerService } from '../services/speaker-service'
+import { stream, streamStop, getDefaultStreamingService } from '../services/streaming-service'
 import { TTSError, TTSErrorCode } from '../core/types'
 import { createModuleLogger } from '../utils/logger'
 
@@ -11,10 +12,7 @@ const logger = createModuleLogger('TTS')
 import { 
   isStreamEnabled, 
   isAutoReadEnabled,
-  getStreamStatus, 
-  getStreamReader, 
-  getStreamingSynthesizer,
-  getStreamPlayer 
+  getStreamStatus
 } from '../index'
 
 function extractTextArg(args: unknown): string | undefined {
@@ -34,11 +32,22 @@ function extractTextArg(args: unknown): string | undefined {
       logger.warn('received text7 instead of text from OpenCode framework')
       return text7.trim()
     }
-    if (typeof text7 === 'object' && 'content' in text7) {
-      const content = (text7 as any).content
-      if (typeof content === 'string' && content.trim().length > 0) {
-        logger.warn('text7 is an object with content field')
-        return content.trim()
+    if (typeof text7 === 'object') {
+      // Handle { split: true, content: "..." } format
+      if ('split' in text7 && 'content' in text7) {
+        const content = (text7 as any).content
+        if (typeof content === 'string' && content.trim().length > 0) {
+          logger.info('text7 split format detected')
+          return content.trim()
+        }
+      }
+      // Handle simple { content: "..." } format
+      if ('content' in text7) {
+        const content = (text7 as any).content
+        if (typeof content === 'string' && content.trim().length > 0) {
+          logger.info('text7 content format detected')
+          return content.trim()
+        }
       }
     }
     logger.warn({ type: typeof text7 }, 'text7 is not a valid string or object with content')
@@ -173,13 +182,13 @@ export async function handleToolCall(
       }
       
       case 'tts_list_providers': {
-        const speaker = getDefaultSpeaker()
+        const speaker = getDefaultSpeakerService()
         const providers = speaker.getProviders()
         return { success: true, providers }
       }
       
       case 'tts_status': {
-        const s = getDefaultSpeaker()
+        const s = getDefaultSpeakerService()
         return {
           success: true,
           isPlaying: s.isPlaying(),
@@ -202,14 +211,14 @@ export async function handleToolCall(
             'tts_stream'
           )
         }
-        const streamReader = getStreamReader()
-        const synthesizer = getStreamingSynthesizer()
-        if (streamReader && synthesizer) {
-          streamReader.start()
+        const streamingService = getDefaultStreamingService()
+        if (streamingService) {
           const textArg = extractTextArg(args)
           if (textArg && typeof textArg === 'string' && textArg.trim().length > 0) {
             logger.info({ text: textArg.substring(0, 50) + '...' }, 'synthesizing text')
-            synthesizer.synthesize(textArg)
+            stream(textArg).catch((error) => {
+              logger.error({ error }, 'stream failed')
+            })
           }
           return { success: true, message: 'Stream speak started' }
         }
@@ -228,13 +237,13 @@ export async function handleToolCall(
             'tts_stream'
           )
         }
-        const player = getStreamPlayer()
-        if (player) {
-          player.stop()
+        const streamingService = getDefaultStreamingService()
+        if (streamingService) {
+          streamingService.stop()
           return { success: true, message: 'Stream stopped' }
         }
         throw new TTSError(
-          'Stream player not available',
+          'Stream service not available',
           TTSErrorCode.UNKNOWN,
           'tts_stream'
         )

@@ -130,6 +130,7 @@ export class Speaker extends EventEmitter {
       
     } catch (error) {
       this.isSpeaking = false
+      logger.error({ error }, 'speak failed')
 
       // 显示播放失败 Toast
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
