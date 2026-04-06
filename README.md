@@ -48,7 +48,33 @@ ocosay 使用统一的 `AudioBackend` 架构：
 
 > **注意**: 流式播放（豆包模式）需要 naudiodon 后端支持。请执行 `npm install naudiodon` 安装。
 
-## 安装方式
+## ⚠️ 前置依赖
+
+**安装插件前，必须先安装 PortAudio 系统库！**
+
+### macOS
+
+```bash
+brew install portaudio
+```
+
+### Windows WSL
+
+```bash
+sudo apt-get install -y libportaudio-dev portaudio
+```
+
+### Windows 原生
+
+```powershell
+choco install portaudio
+```
+
+> 或从 https://www.portaudio.com/download.html 下载安装
+
+---
+
+## 安装
 
 ### 方式一：ocx 安装（推荐）
 
@@ -61,6 +87,17 @@ ocx install @mingxy/ocosay
 ```bash
 npm install @mingxy/ocosay
 ```
+
+### 验证安装
+
+```bash
+node -e "require('naudiodon')"
+# 输出无错误即成功
+```
+
+---
+
+## 配置
 
 在 OpenCode 配置文件中添加插件：
 
@@ -553,6 +590,23 @@ try {
 | UNKNOWN | 未知错误 |
 
 ## Troubleshooting / FAQ
+
+### Q: naudiodon 加载失败？
+
+**错误**: `Cannot find module 'naudiodon'`
+
+**解决**:
+1. 检查 PortAudio 是否已安装（见前置依赖）
+2. 运行编译:
+   ```bash
+   npm rebuild naudiodon
+   ```
+
+### Q: 音频播放无声？
+
+**解决**:
+1. 确认系统音频设备正常
+2. 检查默认音频输出设备
 
 ### Q: 首包延迟太长怎么办？
 
