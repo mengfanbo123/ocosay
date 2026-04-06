@@ -37,7 +37,7 @@ function markNaudiodonSkipped(): void {
 
 async function ensureNaudiodonCompiled(): Promise<void> {
   if (shouldSkipNaudiodon()) {
-    logger.info('naudiodon skipped previously, skipping compile attempt')
+    logger.info('naudiodon skipped previously')
     return
   }
 
@@ -46,14 +46,13 @@ async function ensureNaudiodonCompiled(): Promise<void> {
     logger.info('naudiodon already compiled')
     return
   } catch {
-    logger.info('naudiodon not compiled, attempting to compile...')
+    logger.info('naudiodon not compiled, will attempt to compile')
+    notificationService.info('正在编译 naudiodon...', 'Ocosay 音频后端')
   }
 
   try {
     const naudiodonPath = dirname(require.resolve('naudiodon'))
-    logger.info({ naudiodonPath }, 'found naudiodon at')
-
-    notificationService.info('正在编译 naudiodon...', 'Ocosay 音频后端')
+    logger.info({ naudiodonPath }, 'found naudiodon, rebuilding')
     execSync('npm rebuild naudiodon', {
       cwd: naudiodonPath,
       stdio: 'inherit'
@@ -61,7 +60,7 @@ async function ensureNaudiodonCompiled(): Promise<void> {
     logger.info('naudiodon compiled successfully')
     notificationService.success('naudiodon 编译成功', '音频后端已就绪')
   } catch (err) {
-    logger.warn({ err }, 'naudiodon rebuild failed, checking for PortAudio...')
+    logger.warn({ err }, 'naudiodon rebuild failed, checking for PortAudio')
     notificationService.warning('naudiodon 编译失败', '正在尝试安装 PortAudio...')
     const installed = installPortAudio()
     if (installed) {
@@ -75,12 +74,13 @@ async function ensureNaudiodonCompiled(): Promise<void> {
         logger.info('naudiodon compiled successfully after PortAudio install')
         notificationService.success('naudiodon 编译成功', '音频后端已就绪')
       } catch (retryErr) {
-        logger.error({ err: retryErr }, 'failed to compile naudiodon even after PortAudio install')
-        notificationService.error('naudiodon 编译失败', '已跳过，之后不再重试')
+        logger.error({ err: retryErr }, 'naudiodon compile failed even after PortAudio install')
+        notificationService.error('naudiodon 编译失败', '自动安装失败，请尝试手动安装')
         markNaudiodonSkipped()
       }
     } else {
-      notificationService.error('PortAudio 安装失败', '已跳过，之后不再重试')
+      logger.error('PortAudio install failed')
+      notificationService.error('PortAudio 安装失败', '自动安装失败，请尝试手动安装')
       markNaudiodonSkipped()
     }
   }
@@ -253,7 +253,6 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
   ;(global as any).__opencode_tui__ = opencodeTui
   notificationService.setTui(opencodeTui)
 
-  await ensureNaudiodonCompiled()
   const config = loadOrCreateConfig()
 
   try {
@@ -271,6 +270,8 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
     initError = err instanceof Error ? err : new Error(String(err))
     logger.error({ error: initError }, 'initialization failed')
   }
+
+  await ensureNaudiodonCompiled()
 
   setTimeout(() => {
     if (initError) {
