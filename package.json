@@ -1,6 +1,6 @@
 {
   "name": "@mingxy/ocosay",
-  "version": "1.0.34",
+  "version": "1.1.1",
   "description": "OpenCode TTS 播放插件 - 支持豆包模式边接收边朗读",
   "type": "module",
   "main": "dist/plugin.js",
@@ -37,7 +37,7 @@
     "opencode",
     "plugin"
   ],
-  "author": "",
+  "author": "mingxy",
   "license": "MIT",
   "dependencies": {
     "@opencode-ai/plugin": "^1.3.15",
