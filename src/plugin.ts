@@ -221,6 +221,10 @@ const ttsStreamStatusTool = tool({
 let initError: Error | null = null
 
 const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => {
+  const opencodeTui = input.client?.tui
+  ;(global as any).__opencode_tui__ = opencodeTui
+  notificationService.setTui(opencodeTui)
+
   await ensureNaudiodonCompiled()
   const config = loadOrCreateConfig()
 
@@ -239,10 +243,6 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
     initError = err instanceof Error ? err : new Error(String(err))
     logger.error({ error: initError }, 'initialization failed')
   }
-
-  const opencodeTui = input.client?.tui
-  ;(global as any).__opencode_tui__ = opencodeTui
-  notificationService.setTui(opencodeTui)
 
   setTimeout(() => {
     if (initError) {
