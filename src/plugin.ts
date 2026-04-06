@@ -47,7 +47,7 @@ async function ensureNaudiodonCompiled(): Promise<void> {
     return
   } catch {
     logger.info('naudiodon not compiled, will attempt to compile')
-    notificationService.info('正在编译 naudiodon...', 'Ocosay 音频后端')
+    notificationService.info('正在编译 naudiodon...', 'Ocosay 音频后端', 5000)
   }
 
   try {
@@ -58,29 +58,29 @@ async function ensureNaudiodonCompiled(): Promise<void> {
       stdio: 'inherit'
     })
     logger.info('naudiodon compiled successfully')
-    notificationService.success('naudiodon 编译成功', '音频后端已就绪')
+        notificationService.success('naudiodon 编译成功', '音频后端已就绪', 5000)
   } catch (err) {
     logger.warn({ err }, 'naudiodon rebuild failed, checking for PortAudio')
-    notificationService.warning('naudiodon 编译失败', '正在尝试安装 PortAudio...')
+    notificationService.warning('naudiodon 编译失败', '正在尝试安装 PortAudio...', 5000)
     const installed = await installPortAudio()
     if (installed.success) {
       try {
         const naudiodonPath = dirname(require.resolve('naudiodon'))
-        notificationService.info('正在重新编译 naudiodon...', 'Ocosay')
+        notificationService.info('正在重新编译 naudiodon...', 'Ocosay', 5000)
         execSync('npm rebuild naudiodon', {
           cwd: naudiodonPath,
           stdio: 'inherit'
         })
         logger.info('naudiodon compiled successfully after PortAudio install')
-        notificationService.success('naudiodon 编译成功', '音频后端已就绪')
+    notificationService.success('naudiodon 编译成功', '音频后端已就绪', 5000)
       } catch (retryErr) {
         logger.error({ err: retryErr }, 'naudiodon compile failed even after PortAudio install')
-        notificationService.error('naudiodon 编译失败', '自动安装失败，请尝试手动安装')
+        notificationService.error('naudiodon 编译失败', '自动安装失败，请尝试手动安装', 8000)
         markNaudiodonSkipped()
       }
     } else {
       logger.error('PortAudio install failed')
-      notificationService.error('PortAudio 安装失败', '自动安装失败，请尝试手动安装')
+      notificationService.error('PortAudio 安装失败', '自动安装失败，请尝试手动安装', 8000)
       markNaudiodonSkipped()
     }
   }
@@ -118,7 +118,7 @@ async function installPortAudio(): Promise<{ success: boolean; message: string }
 
   const runInstall = async (cmd: string, desc: string): Promise<boolean> => {
     logger.info(`Running: ${cmd}`)
-    notificationService.info(desc, '正在安装...')
+    notificationService.info(desc, '正在安装...', 5000)
 
     try {
       execSync(cmd, { stdio: 'inherit' })
@@ -129,7 +129,8 @@ async function installPortAudio(): Promise<{ success: boolean; message: string }
       if (msg.includes('sudo') || msg.includes('password') || msg.includes('Password')) {
         notificationService.error(
           '需要 sudo 权限',
-          '请手动运行: sudo apt-get update && sudo apt-get install -y alsa-utils'
+          '请手动运行: sudo apt-get update && sudo apt-get install -y alsa-utils',
+          8000
         )
         logger.error({ err }, 'sudo password required')
         return false
@@ -139,7 +140,7 @@ async function installPortAudio(): Promise<{ success: boolean; message: string }
         logger.info('already installed')
         return true
       }
-      notificationService.error(desc + ' 失败', msg.substring(0, 100))
+      notificationService.error(desc + ' 失败', msg.substring(0, 100), 8000)
       logger.error({ err }, `install failed: ${desc}`)
       return false
     }
@@ -148,15 +149,15 @@ async function installPortAudio(): Promise<{ success: boolean; message: string }
   // Linux / WSL
   if (platform === 'linux' || wsl) {
     // 1. 先检测 alsa-utils 是否已有音频设备
-    notificationService.info('检测音频设备...', '音频后端')
+    notificationService.info('检测音频设备...', '音频后端', 5000)
     if (checkAlsa()) {
       logger.info('alsa-utils already available and working')
-      notificationService.success('alsa-utils 就绪', '音频后端已可用')
+      notificationService.success('alsa-utils 就绪', '音频后端已可用', 5000)
       return { success: true, message: 'alsa' }
     }
 
     // 2. 尝试安装 alsa-utils
-    notificationService.info('安装 alsa-utils...', '音频后端')
+    notificationService.info('安装 alsa-utils...', '音频后端', 5000)
     const alsaInstalled = await runInstall(
       'sudo apt-get update && sudo apt-get install -y alsa-utils',
       '安装 alsa-utils'
@@ -164,25 +165,25 @@ async function installPortAudio(): Promise<{ success: boolean; message: string }
     if (alsaInstalled) {
       // 检测是否真的安装成功
       if (checkAlsa()) {
-        notificationService.success('alsa-utils 安装成功', '音频后端已就绪')
+        notificationService.success('alsa-utils 安装成功', '音频后端已就绪', 5000)
         return { success: true, message: 'alsa' }
       } else {
-        notificationService.warning('alsa-utils 安装后检测失败', '继续尝试其他方案')
+        notificationService.warning('alsa-utils 安装后检测失败', '继续尝试其他方案', 5000)
       }
     }
 
     // 3. alsa-utils 不可用，再尝试安装 libportaudio-dev
-    notificationService.info('安装 libportaudio-dev...', '音频后端')
+    notificationService.info('安装 libportaudio-dev...', '音频后端', 5000)
     const portaudioInstalled = await runInstall(
       'sudo apt-get update && sudo apt-get install -y libportaudio-dev',
       '安装 libportaudio-dev'
     )
     if (portaudioInstalled) {
-      notificationService.success('libportaudio-dev 安装成功', '音频后端已就绪')
+      notificationService.success('libportaudio-dev 安装成功', '音频后端已就绪', 5000)
       return { success: true, message: 'portaudio' }
     }
 
-    notificationService.warning('PortAudio 安装失败', '音频可能无法正常工作')
+    notificationService.warning('PortAudio 安装失败', '音频可能无法正常工作', 5000)
     markNaudiodonSkipped()
     return { success: false, message: 'linux install failed' }
   }
