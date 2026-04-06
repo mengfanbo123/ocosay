@@ -11,22 +11,21 @@ import { writeFileSync, unlinkSync, existsSync } from 'fs'
 
 import { isWsl } from './index'
 
-// 白名单：Windows 路径格式（禁止 - 防止命令注入）
-const SAFE_PATH_REGEX = /^[\w\:\\_.]+$/i
+// 白名单：Windows/WSL 路径格式（禁止 - 防止命令注入）
+const SAFE_PATH_REGEX = /^[\w\:\\_.\$@\/]+$/i
 
-// WSL 路径转换为 Windows 路径
+// WSL 路径转换为 Windows 可访问的 UNC 路径
 function wslPathToWindows(wslPath: string): string {
-  // WSL UNC路径格式: /tmp/xxx -> //wsl$/Ubuntu/tmp/xxx
-  if (wslPath.startsWith('/tmp/')) {
-    return '//wsl$/Ubuntu/tmp/' + wslPath.slice(5)
+  // 如果已经是 WSL UNC 格式，直接返回
+  if (wslPath.startsWith('//wsl$/')) {
+    return wslPath
   }
-  if (wslPath.startsWith('/var/tmp/')) {
-    return '//wsl$/Ubuntu/var/tmp/' + wslPath.slice(9)
+  // /mnt/x/ 格式 -> x:/ 格式
+  if (/^\/mnt\/[a-z]\//.test(wslPath)) {
+    return wslPath.replace(/^\/mnt\/([a-z])\//, '$1:/').replace(/\//g, '\\')
   }
-  // 处理标准的 /mnt/x/ 格式
+  // 其他格式保留原样（让 Windows 路径验证处理）
   return wslPath
-    .replace(/^\/mnt\/([a-z])\//, '$1:/')
-    .replace(/\//g, '\\')
 }
 
 // 定义不支持操作的错误类
