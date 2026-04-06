@@ -10,6 +10,76 @@ const logger = createModuleLogger('Plugin')
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { execSync } from 'child_process'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+
+async function ensureNaudiodonCompiled(): Promise<void> {
+  try {
+    require('naudiodon')
+    logger.info('naudiodon already compiled')
+    return
+  } catch {
+    logger.info('naudiodon not compiled, attempting to compile...')
+  }
+
+  try {
+    const naudiodonPath = dirname(require.resolve('naudiodon'))
+    logger.info({ naudiodonPath }, 'found naudiodon at')
+
+    notificationService.info('正在编译 naudiodon...', 'Ocosay 音频后端')
+    execSync('npm rebuild naudiodon', {
+      cwd: naudiodonPath,
+      stdio: 'inherit'
+    })
+    logger.info('naudiodon compiled successfully')
+    notificationService.success('naudiodon 编译成功', '音频后端已就绪')
+  } catch (err) {
+    logger.warn({ err }, 'naudiodon rebuild failed, checking for PortAudio...')
+    notificationService.warning('naudiodon 编译失败', '正在尝试安装 PortAudio...')
+    const installed = installPortAudio()
+    if (installed) {
+      try {
+        const naudiodonPath = dirname(require.resolve('naudiodon'))
+        notificationService.info('正在重新编译 naudiodon...', 'Ocosay')
+        execSync('npm rebuild naudiodon', {
+          cwd: naudiodonPath,
+          stdio: 'inherit'
+        })
+        logger.info('naudiodon compiled successfully after PortAudio install')
+        notificationService.success('naudiodon 编译成功', '音频后端已就绪')
+      } catch (retryErr) {
+        logger.error({ err: retryErr }, 'failed to compile naudiodon even after PortAudio install')
+        notificationService.error('naudiodon 编译失败', '请手动运行: npm rebuild naudiodon')
+      }
+    } else {
+      notificationService.error('PortAudio 安装失败', '请手动安装后重试')
+    }
+  }
+}
+
+function installPortAudio(): boolean {
+  const platform = process.platform
+  logger.info({ platform }, 'installing PortAudio for platform')
+  notificationService.info('正在安装 PortAudio...', `平台: ${platform}`)
+
+  try {
+    if (platform === 'linux') {
+      execSync('sudo apt-get update && sudo apt-get install -y libportaudio-dev portaudio', { stdio: 'inherit' })
+    } else if (platform === 'darwin') {
+      execSync('brew install portaudio', { stdio: 'inherit' })
+    } else if (platform === 'win32') {
+      execSync('choco install portaudio -y', { stdio: 'inherit' })
+    } else {
+      logger.warn('unsupported platform for automatic PortAudio install')
+      return false
+    }
+    return true
+  } catch (err) {
+    logger.error({ err }, 'failed to install PortAudio automatically')
+    return false
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -151,6 +221,7 @@ const ttsStreamStatusTool = tool({
 let initError: Error | null = null
 
 const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => {
+  await ensureNaudiodonCompiled()
   const config = loadOrCreateConfig()
 
   try {

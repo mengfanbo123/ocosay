@@ -58,9 +58,6 @@ export async function initialize(config?: InitializeOptions): Promise<void> {
       defaultVoice: config?.defaultVoice
     }
     
-    // 尝试编译 naudiodon（如果需要且可用）
-    await ensureNaudiodonCompiled()
-    
     speaker = new Speaker(speakerOptions)
     
     if (config?.autoRead) {
@@ -235,29 +232,6 @@ export async function destroy(): Promise<void> {
   
   initialized = false
   autoReadEnabled = false
-}
-
-async function ensureNaudiodonCompiled(): Promise<void> {
-  try {
-    require('naudiodon')
-    return
-  } catch {
-    logger.info('naudiodon not compiled, attempting to compile...')
-  }
-  
-  const path = require('path')
-  const naudiodonPath = path.dirname(require.resolve('naudiodon'))
-  const { execSync } = require('child_process')
-  
-  try {
-    execSync('npm rebuild naudiodon', {
-      cwd: naudiodonPath,
-      stdio: 'inherit'
-    })
-    logger.info('naudiodon compiled successfully')
-  } catch (err) {
-    logger.warn('failed to compile naudiodon, audio backend may not work')
-  }
 }
 
 export { handleToolCall }
