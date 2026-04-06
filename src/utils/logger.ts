@@ -1,4 +1,5 @@
 import pino from 'pino'
+import { Transform, Writable } from 'stream'
 import { homedir } from 'os'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
@@ -14,23 +15,51 @@ if (!existsSync(logDir)) {
   }
 }
 
-const streams: pino.StreamEntry[] = [
-  { stream: process.stdout },
-]
+const level = process.env.NODE_ENV !== 'production' ? 'debug' : (process.env.OCOSAY_LOG_LEVEL || 'info')
 
+const formatLog = (log: pino.LogDescriptor): string => {
+  const time = log.time ? new Date(log.time as string).toISOString().replace('T', ' ').replace('Z', '') : ''
+  const levelStr = log.level === 30 ? 'INFO' : log.level === 40 ? 'WARNING' : log.level === 50 ? 'ERROR' : 'DEBUG'
+  const module = (log as Record<string, unknown>).module as string || 'App'
+  const msg = log.msg || ''
+  return `[Ocosay][${time}][${levelStr}][${module}] 对应事件{${msg}}\n`
+}
+
+const createFormatStream = (): Transform => new Transform({
+  transform(chunk, _encoding, callback) {
+    try {
+      const log = JSON.parse(chunk.toString())
+      this.push(formatLog(log))
+    } catch {
+      this.push(chunk)
+    }
+    callback()
+  }
+})
+
+const stdoutStream = createFormatStream()
+stdoutStream.pipe(process.stdout)
+
+let fileStream: Transform | null = null
 try {
-  streams.push({ stream: pino.destination({ dest: logFile, mkdir: true }) })
+  const fileDest = pino.destination({ dest: logFile, mkdir: true }) as unknown as Writable
+  fileStream = createFormatStream()
+  fileStream.pipe(fileDest)
 } catch {
   // fallback to stdout only
 }
-
-const level = process.env.NODE_ENV !== 'production' ? 'debug' : (process.env.OCOSAY_LOG_LEVEL || 'info')
 
 export const logger = pino(
   {
     level,
     base: { service: 'ocosay' },
     timestamp: pino.stdTimeFunctions.isoTime,
+    formatters: {
+      level: (label: string) => ({ level: label }),
+    },
   },
-  pino.multistream(streams)
+  pino.multistream([
+    { stream: stdoutStream },
+    ...(fileStream ? [{ stream: fileStream as unknown as Writable }] : [])
+  ] as pino.StreamEntry[])
 )
