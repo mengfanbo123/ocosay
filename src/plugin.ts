@@ -281,8 +281,8 @@ async function installPortAudio(): Promise<{ success: boolean; message: string }
       if (msg.includes('sudo') || msg.includes('password') || msg.includes('Password')) {
         notificationService.error(
           '需要 sudo 权限',
-          '请手动运行: sudo apt-get update && sudo apt-get install -y alsa-utils',
-          8000
+          '# 在WSL终端执行一次\nsudo visudo\n# 添加行：dongx ALL=(ALL) NOPASSWD: ALL',
+          10000
         )
         logger.error({ err }, 'sudo password required')
         return false
