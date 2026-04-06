@@ -187,7 +187,7 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
         5000
       )
     }
-  }, 7000)
+  }, 1500)
 
   return {
     tool: {

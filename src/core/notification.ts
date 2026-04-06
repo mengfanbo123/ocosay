@@ -71,10 +71,16 @@ class NotificationService {
     
     logger.info({ count: this.pendingToasts.length }, 'flushing pending toasts')
     const pending = [...this.pendingToasts]
-    this.pendingToasts = []
+    this.pendingToasts = []  // 乐观清空
     
     for (const toast of pending) {
-      this.showToast(toast)
+      try {
+        this.showToast(toast)
+      } catch (err) {
+        // 保护性重新加入队列
+        this.pendingToasts.push(toast)
+        logger.warn({ err }, 'showToast threw unexpected error, re-queued')
+      }
     }
   }
 
