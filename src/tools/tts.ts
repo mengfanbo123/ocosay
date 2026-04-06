@@ -4,15 +4,13 @@
  */
 
 import { speak, stop, pause, resume, listVoices, getDefaultSpeakerService } from '../services/speaker-service'
+import { stream, streamStop, getDefaultStreamingService } from '../services/streaming-service'
 import { TTSError, TTSErrorCode } from '../core/types'
 import { logger } from '../utils/logger'
 import { 
   isStreamEnabled, 
   isAutoReadEnabled,
-  getStreamStatus, 
-  getStreamReader, 
-  getStreamingSynthesizer,
-  getStreamPlayer 
+  getStreamStatus
 } from '../index'
 
 function extractTextArg(args: unknown): string | undefined {
@@ -211,14 +209,14 @@ export async function handleToolCall(
             'tts_stream'
           )
         }
-        const streamReader = getStreamReader()
-        const synthesizer = getStreamingSynthesizer()
-        if (streamReader && synthesizer) {
-          streamReader.start()
+        const streamingService = getDefaultStreamingService()
+        if (streamingService) {
           const textArg = extractTextArg(args)
           if (textArg && typeof textArg === 'string' && textArg.trim().length > 0) {
             logger.info({ text: textArg.substring(0, 50) + '...' }, 'synthesizing text')
-            synthesizer.synthesize(textArg)
+            stream(textArg).catch((error) => {
+              logger.error({ error }, 'stream failed')
+            })
           }
           return { success: true, message: 'Stream speak started' }
         }
@@ -237,13 +235,13 @@ export async function handleToolCall(
             'tts_stream'
           )
         }
-        const player = getStreamPlayer()
-        if (player) {
-          player.stop()
+        const streamingService = getDefaultStreamingService()
+        if (streamingService) {
+          streamingService.stop()
           return { success: true, message: 'Stream stopped' }
         }
         throw new TTSError(
-          'Stream player not available',
+          'Stream service not available',
           TTSErrorCode.UNKNOWN,
           'tts_stream'
         )
