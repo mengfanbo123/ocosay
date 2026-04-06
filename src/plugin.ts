@@ -210,6 +210,115 @@ async function ensureNaudiodonCompiled(): Promise<void> {
   }
 }
 
+async function verifyModuleLoad(dep: string): Promise<boolean> {
+  try {
+    require(dep)
+    logger.info(`${dep} loaded successfully`)
+    return true
+  } catch (err) {
+    logger.warn({ err }, `${dep} load failed`)
+    return false
+  }
+}
+
+async function fixOptionalDep(dep: string, depPath: string, maxRetries = 5): Promise<boolean> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    if (await verifyModuleLoad(dep)) {
+      return true
+    }
+
+    logger.info({ attempt, dep }, 'module not loadable, trying rebuild')
+    notificationService.info(`正在编译 ${dep} (${attempt + 1}/${maxRetries})...`, 'Ocosay', 3000)
+
+    try {
+      execSync('npm rebuild', {
+        cwd: depPath,
+        stdio: 'inherit'
+      })
+      logger.info(`${dep} rebuilt`)
+    } catch (err) {
+      logger.warn({ err }, `${dep} rebuild failed`)
+    }
+
+    if (await verifyModuleLoad(dep)) {
+      return true
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 1000))
+  }
+
+  return await verifyModuleLoad(dep)
+}
+
+async function ensureOptionalDepsInstalled(): Promise<void> {
+  const optionalDeps = ['play-sound', 'speaker']
+  const missingDeps: string[] = []
+  const basePath = dirname(require.resolve('./package.json'))
+
+  for (const dep of optionalDeps) {
+    if (await verifyModuleLoad(dep)) {
+      continue
+    }
+    missingDeps.push(dep)
+  }
+
+  if (missingDeps.length === 0) {
+    return
+  }
+
+  notificationService.info(
+    `正在安装可选依赖: ${missingDeps.join(', ')}...`,
+    'Ocosay 音频后端',
+    5000
+  )
+
+  try {
+    const depsStr = missingDeps.join(' ')
+    logger.info({ deps: depsStr }, 'installing optional dependencies')
+    execSync(`npm install ${depsStr}`, {
+      cwd: basePath,
+      stdio: 'inherit'
+    })
+    logger.info('optional dependencies installed')
+  } catch (err) {
+    logger.warn({ err }, 'optional dependencies install failed')
+    notificationService.warning(
+      '可选依赖安装失败',
+      `请手动运行: npm install ${missingDeps.join(' ')}`,
+      8000
+    )
+    return
+  }
+
+  let allLoaded = true
+  for (const dep of missingDeps) {
+    const depPath = dirname(require.resolve(dep, { paths: [basePath] }))
+    if (await verifyModuleLoad(dep)) {
+      continue
+    }
+
+    notificationService.warning(`${dep} 加载失败，正在尝试编译...`, 'Ocosay', 5000)
+    const fixed = await fixOptionalDep(dep, depPath)
+    if (!fixed) {
+      allLoaded = false
+    }
+  }
+
+  if (allLoaded) {
+    notificationService.success(
+      '可选依赖安装成功',
+      'play-sound & speaker 已就绪',
+      5000
+    )
+  } else {
+    notificationService.warning(
+      '部分可选依赖安装失败',
+      `请手动运行: npm install ${missingDeps.join(' ')} && npm rebuild`,
+      8000
+    )
+  }
+}
+
 function execCmd(cmd: string): { success: boolean; output: string } {
   try {
     const output = execSync(cmd, { stdio: 'pipe', encoding: 'utf8' })
@@ -548,6 +657,7 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
   }
 
   await ensureNaudiodonCompiled()
+  await ensureOptionalDepsInstalled()
 
   // 检测音频环境，每步都加 toast
   await checkAudioEnvironmentForBackend()
