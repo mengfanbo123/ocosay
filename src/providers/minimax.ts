@@ -139,30 +139,40 @@ export class MiniMaxProvider extends BaseTTSProvider {
 
       const stream = response.data
       const audioChunks: Buffer[] = []
+      let lineBuffer = ''
 
       return new Promise((resolve, reject) => {
         stream.on('data', (chunk: Buffer) => {
-          try {
-            const lines = chunk.toString().split('\n')
-            for (const line of lines) {
-              if (line.startsWith('data:')) {
-                const data = JSON.parse(line.slice(5))
-                if (data.data?.audio) {
-                  audioChunks.push(Buffer.from(data.data.audio, 'hex'))
-                }
-                if (data.data?.status === 2) {
-                  const fullAudio = Buffer.concat(audioChunks)
-                  resolve({
-                    audioData: fullAudio,
-                    format: this.audioFormat,
-                    isStream: true,
-                    duration: this.estimateDuration(fullAudio.length)
-                  })
-                }
+          lineBuffer += chunk.toString()
+          
+          while (true) {
+            const lineEnd = lineBuffer.indexOf('\n')
+            if (lineEnd === -1) break
+            const line = lineBuffer.slice(0, lineEnd).trim()
+            lineBuffer = lineBuffer.slice(lineEnd + 1)
+            
+            if (!line || !line.startsWith('data:')) continue
+            
+            const jsonStr = line.slice(5).trim()
+            if (!jsonStr) continue
+            
+            try {
+              const data = JSON.parse(jsonStr)
+              if (data.audio) {
+                audioChunks.push(Buffer.from(data.audio, 'hex'))
               }
+              if (data.is_final === true) {
+                const fullAudio = Buffer.concat(audioChunks)
+                resolve({
+                  audioData: fullAudio,
+                  format: this.audioFormat,
+                  isStream: true,
+                  duration: this.estimateDuration(fullAudio.length)
+                })
+              }
+            } catch (e) {
+              // ignore
             }
-          } catch (e) {
-            audioChunks.push(chunk)
           }
         })
 
@@ -176,6 +186,20 @@ export class MiniMaxProvider extends BaseTTSProvider {
         })
 
         stream.on('end', () => {
+          if (lineBuffer.trim() && lineBuffer.startsWith('data:')) {
+            const jsonStr = lineBuffer.slice(5).trim()
+            if (jsonStr) {
+              try {
+                const data = JSON.parse(jsonStr)
+                if (data.audio) {
+                  audioChunks.push(Buffer.from(data.audio, 'hex'))
+                }
+              } catch (e) {
+                // ignore
+              }
+            }
+          }
+          
           if (audioChunks.length > 0) {
             const fullAudio = Buffer.concat(audioChunks)
             resolve({
