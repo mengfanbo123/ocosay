@@ -4,6 +4,7 @@ import { handleToolCall } from './index.js'
 import { initialize } from './index.js'
 import { loadOrCreateConfig } from './config.js'
 import { logger } from './utils/logger.js'
+import { initializeNotificationService, showToast } from './services/notification-service.js'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
@@ -168,26 +169,14 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
 
   const opencodeTui = input.client?.tui
   ;(global as any).__opencode_tui__ = opencodeTui
+  initializeNotificationService(opencodeTui)
 
   // 插件初始化完成后立即显示 Toast（延迟 7 秒等待 TUI 渲染）
   setTimeout(async () => {
-    if (!opencodeTui?.showToast) return
     if (initError) {
-      await opencodeTui.showToast({
-        body: {
-          title: `Ocosay v${pluginVersion} Initialization Failed`,
-          message: 'Initialization failed, please check config',
-          variant: 'error'
-        }
-      })
+      showToast(`Ocosay v${pluginVersion} Initialization Failed: please check config`, 'error')
     } else {
-      await opencodeTui.showToast({
-        body: {
-          title: `Ocosay v${pluginVersion} Plugin Loaded`,
-          message: `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
-          variant: 'success'
-        }
-      })
+      showToast(`Ocosay v${pluginVersion} Plugin Loaded (Auto-read: ${config.autoRead ? 'ON' : 'OFF'})`, 'success')
     }
   }, 7000)
 
@@ -225,15 +214,7 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
             })
             initError = null
           } catch (err) {
-            if (opencodeTui?.showToast) {
-              await opencodeTui.showToast({
-                body: {
-                  title: `Ocosay v${pluginVersion} Initialization Failed`,
-                  message: 'Initialization failed, please check config',
-                  variant: 'error'
-                }
-              })
-            }
+            showToast(`Ocosay v${pluginVersion} Initialization Failed: please check config`, 'error')
           }
         }
       }
