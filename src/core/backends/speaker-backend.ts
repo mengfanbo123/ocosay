@@ -4,11 +4,20 @@
  * 支持流式播放，但需要完整的音频头信息
  */
 
-import Speaker from 'speaker'
 import { AudioBackend, AudioBackendEvents, BackendOptions } from './base'
+import { logger } from '../../utils/logger.js'
 
 // speaker 包没有类型定义，使用 any
 type SpeakerInstance = any
+
+// 动态加载 speaker 模块
+let Speaker: any
+try {
+  Speaker = require('speaker')
+} catch (err) {
+  logger.warn({ err }, 'speaker not available')
+  Speaker = null
+}
 
 /**
  * SpeakerBackend - 使用 speaker 包的后端
