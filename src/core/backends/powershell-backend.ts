@@ -12,7 +12,8 @@ import { writeFileSync, unlinkSync, existsSync } from 'fs'
 import { isWsl } from './index'
 
 // 白名单：Windows/WSL 路径格式（禁止 - 防止命令注入）
-const SAFE_PATH_REGEX = /^[\w\:\\_.\$@\/]+$/i
+// 允许: 字母数字 \w, Windows盘符 : \:, 反斜杠 \\, 下划线 _, 点 ., $ @ /, 以及 -
+const SAFE_PATH_REGEX = /^[\w\:\\_.\-$@\/]+$/i
 
 // WSL 路径转换为 Windows 可访问的 UNC 路径
 function wslPathToWindows(wslPath: string): string {
@@ -23,6 +24,10 @@ function wslPathToWindows(wslPath: string): string {
   // /mnt/x/ 格式 -> x:/ 格式
   if (/^\/mnt\/[a-z]\//.test(wslPath)) {
     return wslPath.replace(/^\/mnt\/([a-z])\//, '$1:/').replace(/\//g, '\\')
+  }
+  // /tmp/ 格式 -> //wsl$/Ubuntu/tmp/ 格式 (WSL 默认发行版)
+  if (wslPath.startsWith('/tmp/')) {
+    return wslPath.replace(/^\/tmp\//, '//wsl$/Ubuntu/tmp/')
   }
   // 其他格式保留原样（让 Windows 路径验证处理）
   return wslPath

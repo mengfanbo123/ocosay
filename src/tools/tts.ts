@@ -27,7 +27,7 @@ function extractTextArg(args: unknown): string | undefined {
   }
 
   const text7 = argObj.text7
-  if (text7 !== null && text7 !== undefined) {
+  if (text7 != null) {
     if (typeof text7 === 'string' && text7.trim().length > 0) {
       logger.warn('received text7 instead of text from OpenCode framework')
       return text7.trim()
@@ -40,6 +40,7 @@ function extractTextArg(args: unknown): string | undefined {
       }
     }
     logger.warn({ type: typeof text7 }, 'text7 is not a valid string or object with content')
+    return undefined
   }
 
   for (const key of Object.keys(argObj)) {
