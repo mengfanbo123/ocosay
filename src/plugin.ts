@@ -35,6 +35,103 @@ function markNaudiodonSkipped(): void {
   }
 }
 
+async function verifyNaudiodonLoad(): Promise<boolean> {
+  try {
+    require('naudiodon')
+    logger.info('naudiodon loaded successfully')
+    return true
+  } catch (err) {
+    logger.warn({ err }, 'naudiodon load failed after rebuild')
+    return false
+  }
+}
+
+async function rebuildNaudiodonDependency(dep: string): Promise<boolean> {
+  const naudiodonPath = dirname(require.resolve('naudiodon'))
+  try {
+    notificationService.info(`正在编译 ${dep}...`, 'Ocosay 依赖', 4000)
+    execSync(`npm rebuild ${dep}`, {
+      cwd: naudiodonPath,
+      stdio: 'inherit'
+    })
+    logger.info(`${dep} rebuilt successfully`)
+    return true
+  } catch (err) {
+    logger.warn({ err }, `${dep} rebuild failed`)
+    return false
+  }
+}
+
+async function fixNaudiodonDependencies(maxRetries = 5): Promise<boolean> {
+  const naudiodonPath = dirname(require.resolve('naudiodon'))
+  
+  // naudiodon 的关键编译依赖
+  const criticalDeps = ['segfault-handler', 'bindings', 'node-pre-gyp']
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    // 先验证当前状态
+    if (await verifyNaudiodonLoad()) {
+      return true
+    }
+    
+    logger.info({ attempt }, 'naudiodon not loadable, trying dependency rebuild')
+    notificationService.info(`正在检查依赖 (${attempt + 1}/${maxRetries})...`, 'Ocosay', 3000)
+    
+    // 尝试重建关键依赖
+    let anySuccess = false
+    for (const dep of criticalDeps) {
+      try {
+        // 检查依赖是否存在
+        require.resolve(dep, { paths: [naudiodonPath] })
+        // 存在则尝试重建
+        if (await rebuildNaudiodonDependency(dep)) {
+          anySuccess = true
+        }
+      } catch {
+        // 依赖不存在，尝试安装
+        try {
+          notificationService.info(`正在安装 ${dep}...`, 'Ocosay', 4000)
+          execSync(`npm install ${dep}`, {
+            cwd: naudiodonPath,
+            stdio: 'inherit'
+          })
+          logger.info(`${dep} installed successfully`)
+          anySuccess = true
+        } catch (installErr) {
+          logger.warn({ err: installErr }, `${dep} install failed`)
+        }
+      }
+    }
+    
+    // 重建 naudiodon 本身
+    if (!anySuccess || !(await verifyNaudiodonLoad())) {
+      try {
+        notificationService.info('正在重新编译 naudiodon...', 'Ocosay', 4000)
+        execSync('npm rebuild naudiodon', {
+          cwd: naudiodonPath,
+          stdio: 'inherit'
+        })
+        logger.info('naudiodon rebuilt')
+        anySuccess = true
+      } catch (err) {
+        logger.warn({ err }, 'naudiodon rebuild failed')
+      }
+    }
+    
+    // 再次验证
+    if (await verifyNaudiodonLoad()) {
+      return true
+    }
+    
+    // 如果这轮有任何成功，休息一下再试
+    if (anySuccess) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+  }
+  
+  return await verifyNaudiodonLoad()
+}
+
 async function ensureNaudiodonCompiled(): Promise<void> {
   if (shouldSkipNaudiodon()) {
     logger.info('naudiodon skipped previously')
@@ -57,8 +154,22 @@ async function ensureNaudiodonCompiled(): Promise<void> {
       cwd: naudiodonPath,
       stdio: 'inherit'
     })
-    logger.info('naudiodon compiled successfully')
-        notificationService.success('naudiodon 编译成功', '音频后端已就绪', 5000)
+    logger.info('naudiodon compiled, verifying...')
+    
+    // 验证模块能否加载
+    const loadSuccess = await verifyNaudiodonLoad()
+    if (loadSuccess) {
+      notificationService.success('naudiodon 编译成功', '音频后端已就绪', 5000)
+    } else {
+      // 加载失败，说明依赖有问题，循环修复
+      notificationService.warning('naudiodon 加载失败', '正在检查依赖...', 5000)
+      const fixed = await fixNaudiodonDependencies()
+      if (fixed) {
+        notificationService.success('naudiodon 依赖修复成功', '音频后端已就绪', 5000)
+      } else {
+        throw new Error('naudiodon dependencies could not be fixed')
+      }
+    }
   } catch (err) {
     logger.warn({ err }, 'naudiodon rebuild failed, checking for PortAudio')
     notificationService.warning('naudiodon 编译失败', '正在尝试安装 PortAudio...', 5000)
@@ -72,7 +183,20 @@ async function ensureNaudiodonCompiled(): Promise<void> {
           stdio: 'inherit'
         })
         logger.info('naudiodon compiled successfully after PortAudio install')
-    notificationService.success('naudiodon 编译成功', '音频后端已就绪', 5000)
+        
+        // 验证
+        const loadSuccess = await verifyNaudiodonLoad()
+        if (loadSuccess) {
+          notificationService.success('naudiodon 编译成功', '音频后端已就绪', 5000)
+        } else {
+          notificationService.warning('naudiodon 加载失败', '正在检查依赖...', 5000)
+          const fixed = await fixNaudiodonDependencies()
+          if (fixed) {
+            notificationService.success('naudiodon 依赖修复成功', '音频后端已就绪', 5000)
+          } else {
+            throw new Error('naudiodon dependencies could not be fixed')
+          }
+        }
       } catch (retryErr) {
         logger.error({ err: retryErr }, 'naudiodon compile failed even after PortAudio install')
         notificationService.error('naudiodon 编译失败', '自动安装失败，请尝试手动安装', 8000)
