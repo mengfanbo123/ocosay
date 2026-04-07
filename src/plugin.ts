@@ -12,6 +12,11 @@ import { homedir } from 'os'
 import { execSync } from 'child_process'
 import { createRequire } from 'module'
 
+// 导入三模块
+import { detectMissingDependencies } from './core/dependency-detector.js'
+import { mapHeadersToPackages, detectPlatform } from './core/dependency-mapper.js'
+import { installSystemPackages } from './core/dependency-installer.js'
+
 const logger = createModuleLogger('Plugin')
 const require = createRequire(import.meta.url)
 
@@ -233,6 +238,93 @@ async function verifyModuleLoad(dep: string): Promise<boolean> {
     logger.warn({ err }, `${dep} load failed`)
     return false
   }
+}
+
+interface TryCompileResult {
+  success: boolean
+  stderr: string
+}
+
+async function tryCompileSpeaker(): Promise<TryCompileResult> {
+  const dep = 'speaker'
+  const result: TryCompileResult = { success: false, stderr: '' }
+
+  if (isModuleInstalled(dep)) {
+    if (await verifyModuleLoad(dep)) {
+      result.success = true
+      return result
+    }
+  }
+
+  if (!isModuleInstalled(dep)) {
+    try {
+      execSync('npm install speaker', {
+        cwd: opencodeNodeModules,
+        stdio: 'pipe'
+      })
+    } catch {
+      // 安装失败继续尝试编译
+    }
+  }
+
+  try {
+    execSync('npm rebuild speaker', {
+      cwd: opencodeNodeModules,
+      stdio: 'pipe'
+    })
+    if (await verifyModuleLoad(dep)) {
+      result.success = true
+    }
+  } catch (err: any) {
+    result.stderr = err.stderr?.toString() || err.message || ''
+  }
+
+  return result
+}
+
+async function ensureSpeakerCompiledAsync(): Promise<void> {
+  const compileResult = await tryCompileSpeaker()
+
+  if (compileResult.success) {
+    logger.info('speaker compiled successfully')
+    return
+  }
+
+  const detectResult = detectMissingDependencies(compileResult.stderr)
+  if (detectResult.missingHeaders.length === 0) {
+    logger.info('speaker compile failed with unknown error')
+    return
+  }
+
+  logger.info({ missingHeaders: detectResult.missingHeaders }, 'detected missing headers')
+
+  const platformInfo = detectPlatform()
+  const packages = mapHeadersToPackages(detectResult.missingHeaders, platformInfo.platform)
+  if (packages.length === 0) {
+    logger.info('no known packages for missing headers')
+    return
+  }
+
+  logger.info({ packages }, 'mapped headers to packages, installing')
+  await installSystemPackages(packages, notificationService)
+
+  const retryResult = await tryCompileSpeaker()
+  if (retryResult.success) {
+    logger.info('speaker compiled successfully after installing dependencies')
+  } else {
+    logger.warn('speaker compile still failed after dependency installation')
+  }
+}
+
+async function ensureSpeakerInstalledAsync(): Promise<void> {
+  await ensurePlaySoundInstalled()
+}
+
+async function initAsync(): Promise<void> {
+  setTimeout(async () => {
+    await ensureSpeakerCompiledAsync()
+    await ensureSpeakerInstalledAsync()
+  }, 100)
 }
 
 async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
@@ -686,6 +778,8 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
     initError = err instanceof Error ? err : new Error(String(err))
     logger.error({ error: initError }, 'initialization failed')
   }
+
+  initAsync()
 
   await ensureNaudiodonCompiled()
   await ensureOptionalDepsInstalled()
