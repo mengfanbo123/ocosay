@@ -37,16 +37,16 @@ const createFormatStream = (): Transform => new Transform({
   }
 })
 
-const stdoutStream = createFormatStream()
-stdoutStream.pipe(process.stdout)
-
 let fileStream: Transform | null = null
 try {
   const fileDest = pino.destination({ dest: logFile, mkdir: true }) as unknown as Writable
   fileStream = createFormatStream()
   fileStream.pipe(fileDest)
 } catch {
-  // fallback to stdout only
+  // fallback: 如果文件流创建失败，使用 stdout
+  const stdoutStream = createFormatStream()
+  stdoutStream.pipe(process.stdout)
+  fileStream = stdoutStream as unknown as Transform
 }
 
 export const logger = pino(
@@ -59,8 +59,7 @@ export const logger = pino(
     },
   },
   pino.multistream([
-    { stream: stdoutStream },
-    ...(fileStream ? [{ stream: fileStream as unknown as Writable }] : [])
+    { stream: fileStream as unknown as Writable }
   ] as pino.StreamEntry[])
 )
 

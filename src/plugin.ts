@@ -294,8 +294,9 @@ async function tryCompileSpeaker(): Promise<TryCompileResult> {
   }
 
   const rebuildResult = await execAsync('npm rebuild speaker', opencodeNodeModules)
+  result.stderr = (rebuildResult.stdout || '') + '\n' + (rebuildResult.stderr || '')
   if (rebuildResult.error) {
-    result.stderr = rebuildResult.stderr || rebuildResult.error.message || ''
+    result.stderr += '\n' + (rebuildResult.error.message || '')
   }
   if (await verifyModuleLoad(dep)) {
     result.success = true
