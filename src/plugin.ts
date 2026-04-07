@@ -274,70 +274,7 @@ interface TryCompileResult {
   stderr: string
 }
 
-async function tryCompileSpeaker(): Promise<TryCompileResult> {
-  const dep = 'speaker'
-  const result: TryCompileResult = { success: false, stderr: '' }
 
-  if (isModuleInstalled(dep)) {
-    if (await verifyModuleLoad(dep)) {
-      result.success = true
-      return result
-    }
-  }
-
-  if (!isModuleInstalled(dep)) {
-    const installResult = await execAsync('npm install speaker', opencodeNodeModules)
-    if (installResult.error) {
-      // 安装失败继续尝试编译
-      logger.warn({ err: installResult.error }, 'speaker install failed')
-    }
-  }
-
-  const rebuildResult = await execAsync('npm rebuild speaker', opencodeNodeModules)
-  result.stderr = (rebuildResult.stdout || '') + '\n' + (rebuildResult.stderr || '')
-  if (rebuildResult.error) {
-    result.stderr += '\n' + (rebuildResult.error.message || '')
-  }
-  if (await verifyModuleLoad(dep)) {
-    result.success = true
-  }
-
-  return result
-}
-
-async function ensureSpeakerCompiledAsync(): Promise<void> {
-  const compileResult = await tryCompileSpeaker()
-
-  if (compileResult.success) {
-    logger.info('speaker compiled successfully')
-    return
-  }
-
-  const detectResult = detectMissingDependencies(compileResult.stderr)
-  if (detectResult.missingHeaders.length === 0) {
-    logger.info('speaker compile failed with unknown error')
-    return
-  }
-
-  logger.info({ missingHeaders: detectResult.missingHeaders }, 'detected missing headers')
-
-  const platformInfo = detectPlatform()
-  const packages = mapHeadersToPackages(detectResult.missingHeaders, platformInfo.platform)
-  if (packages.length === 0) {
-    logger.info('no known packages for missing headers')
-    return
-  }
-
-  logger.info({ packages }, 'mapped headers to packages, installing')
-  await installSystemPackages(packages, notificationService)
-
-  const retryResult = await tryCompileSpeaker()
-  if (retryResult.success) {
-    logger.info('speaker compiled successfully after installing dependencies')
-  } else {
-    logger.warn('speaker compile still failed after dependency installation')
-  }
-}
 
 async function ensureSpeakerInstalledAsync(): Promise<void> {
   await ensurePlaySoundInstalled()
@@ -345,71 +282,11 @@ async function ensureSpeakerInstalledAsync(): Promise<void> {
 
 async function initAsync(): Promise<void> {
   setTimeout(async () => {
-    await ensureSpeakerCompiledAsync()
     await ensureSpeakerInstalledAsync()
   }, 100)
 }
 
-async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
-  const dep = 'speaker'
 
-  if (isModuleInstalled(dep)) {
-    logger.info('speaker already installed')
-    if (await verifyModuleLoad(dep)) {
-      return
-    }
-    logger.info('speaker installed but not loadable, rebuilding')
-    notificationService.info('正在编译 speaker...', 'Ocosay 音频后端', 5000)
-    const rebuildResult = await execAsync('npm rebuild speaker', opencodeNodeModules)
-    if (rebuildResult.error) {
-      logger.warn({ err: rebuildResult.error }, 'speaker rebuild failed')
-    } else {
-      logger.info('speaker rebuilt')
-    }
-    if (await verifyModuleLoad(dep)) {
-      notificationService.success('speaker 编译成功', '音频后端已就绪', 5000)
-      return
-    }
-  } else {
-    logger.info('speaker not found, installing')
-    notificationService.info('正在安装 speaker...', 'Ocosay 音频后端', 5000)
-    const installResult = await execAsync('npm install speaker', opencodeNodeModules)
-    if (installResult.error) {
-      logger.warn({ err: installResult.error }, 'speaker install failed')
-    } else {
-      logger.info('speaker installed')
-    }
-  }
-
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    if (await verifyModuleLoad(dep)) {
-      notificationService.success('speaker 编译成功', '音频后端已就绪', 5000)
-      return
-    }
-
-    logger.info({ attempt, dep }, 'speaker not loadable, trying rebuild')
-    notificationService.info(`正在重新编译 speaker (${attempt + 1}/${maxRetries})...`, 'Ocosay', 3000)
-
-    const rebuildResult = await execAsync('npm rebuild speaker', opencodeNodeModules)
-    if (rebuildResult.error) {
-      logger.warn({ err: rebuildResult.error }, 'speaker rebuild failed')
-    } else {
-      logger.info('speaker rebuilt')
-    }
-
-    if (await verifyModuleLoad(dep)) {
-      notificationService.success('speaker 编译成功', '音频后端已就绪', 5000)
-      return
-    }
-
-    if (attempt < maxRetries - 1) {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-    }
-  }
-
-  logger.error({ dep }, 'speaker could not be compiled')
-  notificationService.error('speaker 编译失败', '请手动运行: npm install speaker && npm rebuild speaker', 8000)
-}
 
 async function ensurePlaySoundInstalled(): Promise<void> {
   const dep = 'play-sound'
@@ -448,10 +325,6 @@ async function ensurePlaySoundInstalled(): Promise<void> {
 }
 
 async function ensureOptionalDepsInstalled(): Promise<void> {
-  // 异步版本，不阻塞启动
-  ensureSpeakerCompiledAsync().catch((err) => {
-    logger.warn({ err }, 'ensureSpeakerCompiledAsync failed')
-  })
   await ensurePlaySoundInstalled()
 }
 
