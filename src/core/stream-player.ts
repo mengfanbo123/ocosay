@@ -51,8 +51,8 @@ export class StreamPlayer extends EventEmitter {
     this.format = options.format || 'mp3'
     this.events = options.events
     
-    // 创建音频后端
-    const backendType = options.backendType || BackendType.NAUDIODON
+    // 创建音频后端，默认使用 AUTO 自动选择合适的后端
+    const backendType = options.backendType || BackendType.AUTO
     this.backend = createBackend(backendType, {
       format: this.format,
       events: {

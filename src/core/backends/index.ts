@@ -73,6 +73,19 @@ function isSpeakerAvailable(): boolean {
   }
 }
 
+/**
+ * 检测是否运行在 WSL (Windows Subsystem for Linux) 环境中
+ */
+function isWSL(): boolean {
+  if (process.platform !== 'linux') return false
+  try {
+    const output = execSync('uname -r', { stdio: 'pipe', encoding: 'utf8' })
+    return output.toLowerCase().includes('microsoft')
+  } catch {
+    return false
+  }
+}
+
 export function createBackend(type: BackendType = BackendType.AUTO, options: BackendOptions = {}): AudioBackend {
   const platform = process.platform
    
@@ -103,8 +116,30 @@ export function createBackend(type: BackendType = BackendType.AUTO, options: Bac
   switch (platform) {
     case 'darwin':
       return new AfplayBackend(options)
-    case 'linux':
+    case 'linux': {
+      const wsl = isWSL()
+      if (wsl) {
+        logger.debug('Running on WSL, skipping naudiodon (may not work with Windows audio)')
+      }
+      
       // Linux 环境检测顺序：naudiodon → aplay → play-sound → speaker → Howler
+      // WSL 环境下 naudiodon 可能无法工作，直接尝试其他后端
+      if (!wsl && isNaudiodonAvailable()) {
+        try {
+          const naudiodon = require('naudiodon')
+          if (naudiodon) {
+            const devices = naudiodon.getDevices()
+            if (devices && devices.length > 0) {
+              return new NaudiodonBackend(options)
+            }
+            logger.debug('naudiodon has no audio devices, skipping')
+          }
+        } catch (err) {
+          logger.error({ err }, 'failed to initialize naudiodon backend')
+        }
+      }
+      
+      // aplay 后端
       if (isCommandAvailable('aplay')) {
         const test = execCmd('aplay -l')
         if (test.success && !test.output.includes('no soundcards')) {
@@ -122,6 +157,7 @@ export function createBackend(type: BackendType = BackendType.AUTO, options: Bac
       // 彻底失败，使用 Howler 作为最后的回退
       logger.warn('All Linux audio backends failed, using HowlerBackend as fallback')
       return new HowlerBackend(options)
+    }
     case 'win32':
       return new PowerShellBackend(options)
     default:
