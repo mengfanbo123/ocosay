@@ -48,14 +48,13 @@ export function execCapture(cmd: string, cwd?: string): { success: boolean; stdo
 }
 
 /**
- * 检测命令执行后的缺失依赖
+ * 从已有的错误输出中检测缺失依赖
+ * @param errorOutput 已捕获的错误输出字符串
  */
-export function detectMissingDependencies(cmd: string, cwd?: string): DetectResult {
-  const result = execCapture(cmd, cwd)
-  const missingHeaders = parseMissingHeaders(result.stderr)
-
+export function detectMissingDependencies(errorOutput: string): DetectResult {
+  const missingHeaders = parseMissingHeaders(errorOutput)
   return {
     missingHeaders,
-    rawOutput: result.stderr,
+    rawOutput: errorOutput,
   }
 }
