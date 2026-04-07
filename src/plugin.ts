@@ -67,15 +67,14 @@ async function verifyNaudiodonLoad(): Promise<boolean> {
 
 async function rebuildNaudiodonDependency(dep: string): Promise<boolean> {
   const naudiodonPath = dirname(require.resolve('naudiodon'))
-  try {
-    notificationService.info(`正在编译 ${dep}...`, 'Ocosay 依赖', 4000)
-    await execAsync(`npm rebuild ${dep}`, naudiodonPath)
-    logger.info(`${dep} rebuilt successfully`)
-    return true
-  } catch (err) {
-    logger.warn({ err }, `${dep} rebuild failed`)
+  notificationService.info(`正在编译 ${dep}...`, 'Ocosay 依赖', 4000)
+  const result = await execAsync(`npm rebuild ${dep}`, naudiodonPath)
+  if (result.error) {
+    logger.warn({ err: result.error }, `${dep} rebuild failed`)
     return false
   }
+  logger.info(`${dep} rebuilt successfully`)
+  return true
 }
 
 async function fixNaudiodonDependencies(maxRetries = 5): Promise<boolean> {
@@ -105,26 +104,26 @@ async function fixNaudiodonDependencies(maxRetries = 5): Promise<boolean> {
         }
       } catch {
         // 依赖不存在，尝试安装
-        try {
-          notificationService.info(`正在安装 ${dep}...`, 'Ocosay', 4000)
-          await execAsync(`npm install ${dep}`, naudiodonPath)
+        notificationService.info(`正在安装 ${dep}...`, 'Ocosay', 4000)
+        const installResult = await execAsync(`npm install ${dep}`, naudiodonPath)
+        if (installResult.error) {
+          logger.warn({ err: installResult.error }, `${dep} install failed`)
+        } else {
           logger.info(`${dep} installed successfully`)
           anySuccess = true
-        } catch (installErr) {
-          logger.warn({ err: installErr }, `${dep} install failed`)
         }
       }
     }
 
     // 重建 naudiodon 本身
     if (!anySuccess || !(await verifyNaudiodonLoad())) {
-      try {
-        notificationService.info('正在重新编译 naudiodon...', 'Ocosay', 4000)
-        await execAsync('npm rebuild naudiodon', naudiodonPath)
+      notificationService.info('正在重新编译 naudiodon...', 'Ocosay', 4000)
+      const rebuildResult = await execAsync('npm rebuild naudiodon', naudiodonPath)
+      if (rebuildResult.error) {
+        logger.warn({ err: rebuildResult.error }, 'naudiodon rebuild failed')
+      } else {
         logger.info('naudiodon rebuilt')
         anySuccess = true
-      } catch (err) {
-        logger.warn({ err }, 'naudiodon rebuild failed')
       }
     }
 
@@ -160,21 +159,57 @@ async function ensureNaudiodonCompiled(): Promise<void> {
   try {
     const naudiodonPath = dirname(require.resolve('naudiodon'))
     logger.info({ naudiodonPath }, 'found naudiodon, rebuilding')
-    await execAsync('npm rebuild naudiodon', naudiodonPath)
-    logger.info('naudiodon compiled, verifying...')
+    const rebuildResult = await execAsync('npm rebuild naudiodon', naudiodonPath)
+    if (rebuildResult.error) {
+      logger.warn({ err: rebuildResult.error }, 'naudiodon rebuild failed, checking for PortAudio')
+      notificationService.warning('naudiodon 编译失败', '正在尝试安装 PortAudio...', 5000)
+      const installed = await installPortAudio()
+      if (installed.success) {
+        const retryPath = dirname(require.resolve('naudiodon'))
+        notificationService.info('正在重新编译 naudiodon...', 'Ocosay', 5000)
+        const retryResult = await execAsync('npm rebuild naudiodon', retryPath)
+        if (retryResult.error) {
+          logger.error({ err: retryResult.error }, 'naudiodon compile failed even after PortAudio install')
+          notificationService.error('naudiodon 编译失败', '自动安装失败，请尝试手动安装', 8000)
+          markNaudiodonSkipped()
+        } else {
+          logger.info('naudiodon compiled successfully after PortAudio install')
 
-    // 验证模块能否加载
-    const loadSuccess = await verifyNaudiodonLoad()
-    if (loadSuccess) {
-      notificationService.success('naudiodon 编译成功', '音频后端已就绪', 5000)
-    } else {
-      // 加载失败，说明依赖有问题，循环修复
-      notificationService.warning('naudiodon 加载失败', '正在检查依赖...', 5000)
-      const fixed = await fixNaudiodonDependencies()
-      if (fixed) {
-        notificationService.success('naudiodon 依赖修复成功', '音频后端已就绪', 5000)
+          // 验证
+          const loadSuccess = await verifyNaudiodonLoad()
+          if (loadSuccess) {
+            notificationService.success('naudiodon 编译成功', '音频后端已就绪', 5000)
+          } else {
+            notificationService.warning('naudiodon 加载失败', '正在检查依赖...', 5000)
+            const fixed = await fixNaudiodonDependencies()
+            if (fixed) {
+              notificationService.success('naudiodon 依赖修复成功', '音频后端已就绪', 5000)
+            } else {
+              markNaudiodonSkipped()
+            }
+          }
+        }
       } else {
-        throw new Error('naudiodon dependencies could not be fixed')
+        logger.error('PortAudio install failed')
+        notificationService.error('PortAudio 安装失败', '自动安装失败，请尝试手动安装', 8000)
+        markNaudiodonSkipped()
+      }
+    } else {
+      logger.info('naudiodon compiled, verifying...')
+
+      // 验证模块能否加载
+      const loadSuccess = await verifyNaudiodonLoad()
+      if (loadSuccess) {
+        notificationService.success('naudiodon 编译成功', '音频后端已就绪', 5000)
+      } else {
+        // 加载失败，说明依赖有问题，循环修复
+        notificationService.warning('naudiodon 加载失败', '正在检查依赖...', 5000)
+        const fixed = await fixNaudiodonDependencies()
+        if (fixed) {
+          notificationService.success('naudiodon 依赖修复成功', '音频后端已就绪', 5000)
+        } else {
+          markNaudiodonSkipped()
+        }
       }
     }
   } catch (err) {
@@ -182,10 +217,14 @@ async function ensureNaudiodonCompiled(): Promise<void> {
     notificationService.warning('naudiodon 编译失败', '正在尝试安装 PortAudio...', 5000)
     const installed = await installPortAudio()
     if (installed.success) {
-      try {
-        const naudiodonPath = dirname(require.resolve('naudiodon'))
-        notificationService.info('正在重新编译 naudiodon...', 'Ocosay', 5000)
-        await execAsync('npm rebuild naudiodon', naudiodonPath)
+      const retryPath = dirname(require.resolve('naudiodon'))
+      notificationService.info('正在重新编译 naudiodon...', 'Ocosay', 5000)
+      const retryResult = await execAsync('npm rebuild naudiodon', retryPath)
+      if (retryResult.error) {
+        logger.error({ err: retryResult.error }, 'naudiodon compile failed even after PortAudio install')
+        notificationService.error('naudiodon 编译失败', '自动安装失败，请尝试手动安装', 8000)
+        markNaudiodonSkipped()
+      } else {
         logger.info('naudiodon compiled successfully after PortAudio install')
 
         // 验证
@@ -198,13 +237,9 @@ async function ensureNaudiodonCompiled(): Promise<void> {
           if (fixed) {
             notificationService.success('naudiodon 依赖修复成功', '音频后端已就绪', 5000)
           } else {
-            throw new Error('naudiodon dependencies could not be fixed')
+            markNaudiodonSkipped()
           }
         }
-      } catch (retryErr) {
-        logger.error({ err: retryErr }, 'naudiodon compile failed even after PortAudio install')
-        notificationService.error('naudiodon 编译失败', '自动安装失败，请尝试手动安装', 8000)
-        markNaudiodonSkipped()
       }
     } else {
       logger.error('PortAudio install failed')
@@ -251,20 +286,19 @@ async function tryCompileSpeaker(): Promise<TryCompileResult> {
   }
 
   if (!isModuleInstalled(dep)) {
-    try {
-      await execAsync('npm install speaker', opencodeNodeModules)
-    } catch {
+    const installResult = await execAsync('npm install speaker', opencodeNodeModules)
+    if (installResult.error) {
       // 安装失败继续尝试编译
+      logger.warn({ err: installResult.error }, 'speaker install failed')
     }
   }
 
-  try {
-    await execAsync('npm rebuild speaker', opencodeNodeModules)
-    if (await verifyModuleLoad(dep)) {
-      result.success = true
-    }
-  } catch (err: any) {
-    result.stderr = err.stderr?.toString() || err.message || ''
+  const rebuildResult = await execAsync('npm rebuild speaker', opencodeNodeModules)
+  if (rebuildResult.error) {
+    result.stderr = rebuildResult.stderr || rebuildResult.error.message || ''
+  }
+  if (await verifyModuleLoad(dep)) {
+    result.success = true
   }
 
   return result
@@ -325,11 +359,11 @@ async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
     }
     logger.info('speaker installed but not loadable, rebuilding')
     notificationService.info('正在编译 speaker...', 'Ocosay 音频后端', 5000)
-    try {
-      await execAsync('npm rebuild speaker', opencodeNodeModules)
+    const rebuildResult = await execAsync('npm rebuild speaker', opencodeNodeModules)
+    if (rebuildResult.error) {
+      logger.warn({ err: rebuildResult.error }, 'speaker rebuild failed')
+    } else {
       logger.info('speaker rebuilt')
-    } catch (err) {
-      logger.warn({ err }, 'speaker rebuild failed')
     }
     if (await verifyModuleLoad(dep)) {
       notificationService.success('speaker 编译成功', '音频后端已就绪', 5000)
@@ -338,11 +372,11 @@ async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
   } else {
     logger.info('speaker not found, installing')
     notificationService.info('正在安装 speaker...', 'Ocosay 音频后端', 5000)
-    try {
-      await execAsync('npm install speaker', opencodeNodeModules)
+    const installResult = await execAsync('npm install speaker', opencodeNodeModules)
+    if (installResult.error) {
+      logger.warn({ err: installResult.error }, 'speaker install failed')
+    } else {
       logger.info('speaker installed')
-    } catch (err) {
-      logger.warn({ err }, 'speaker install failed')
     }
   }
 
@@ -355,11 +389,11 @@ async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
     logger.info({ attempt, dep }, 'speaker not loadable, trying rebuild')
     notificationService.info(`正在重新编译 speaker (${attempt + 1}/${maxRetries})...`, 'Ocosay', 3000)
 
-    try {
-      await execAsync('npm rebuild speaker', opencodeNodeModules)
+    const rebuildResult = await execAsync('npm rebuild speaker', opencodeNodeModules)
+    if (rebuildResult.error) {
+      logger.warn({ err: rebuildResult.error }, 'speaker rebuild failed')
+    } else {
       logger.info('speaker rebuilt')
-    } catch (err) {
-      logger.warn({ err }, 'speaker rebuild failed')
     }
 
     if (await verifyModuleLoad(dep)) {
@@ -389,11 +423,9 @@ async function ensurePlaySoundInstalled(): Promise<void> {
   logger.info('play-sound not found, installing')
   notificationService.info('正在安装 play-sound...', 'Ocosay 音频后端', 5000)
 
-  try {
-    await execAsync('npm install play-sound', opencodeNodeModules)
-    logger.info('play-sound installed')
-  } catch (err) {
-    logger.warn({ err }, 'play-sound install failed')
+  const installResult = await execAsync('npm install play-sound', opencodeNodeModules)
+  if (installResult.error) {
+    logger.warn({ err: installResult.error }, 'play-sound install failed')
     notificationService.warning(
       'play-sound 安装失败',
       '请手动运行: npm install play-sound',
@@ -401,6 +433,7 @@ async function ensurePlaySoundInstalled(): Promise<void> {
     )
     return
   }
+  logger.info('play-sound installed')
 
   if (await verifyModuleLoad(dep)) {
     notificationService.success('play-sound 安装成功', '音频后端已就绪', 5000)
@@ -480,11 +513,9 @@ async function installPortAudio(): Promise<{ success: boolean; message: string }
     logger.info(`Running: ${cmd}`)
     notificationService.info(desc, '正在安装...', 5000)
 
-    try {
-      await execAsync(cmd)
-      return true
-    } catch (err: any) {
-      const msg = err.message || ''
+    const result = await execAsync(cmd)
+    if (result.error) {
+      const msg = result.error.message || ''
       // 检测 sudo 密码失败
       if (msg.includes('sudo') || msg.includes('password') || msg.includes('Password')) {
         notificationService.error(
@@ -492,7 +523,7 @@ async function installPortAudio(): Promise<{ success: boolean; message: string }
           '# 请在WSL终端执行一次\nsudo visudo\n# 添加行：your user name ALL=(ALL) NOPASSWD: ALL',
           10000
         )
-        logger.error({ err }, '需要 sudo 权限 请在WSL终端执行一次sudo visudo # 添加行：your user name ALL=(ALL) NOPASSWD: ALL')
+        logger.error({ err: result.error }, '需要 sudo 权限 请在WSL终端执行一次sudo visudo # 添加行：your user name ALL=(ALL) NOPASSWD: ALL')
         return false
       }
       // 已安装
@@ -501,9 +532,10 @@ async function installPortAudio(): Promise<{ success: boolean; message: string }
         return true
       }
       notificationService.error(desc + ' 失败', msg.substring(0, 100), 8000)
-      logger.error({ err }, `install failed: ${desc}`)
+      logger.error({ err: result.error }, `install failed: ${desc}`)
       return false
     }
+    return true
   }
 
   // Linux / WSL
