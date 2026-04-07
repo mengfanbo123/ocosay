@@ -9,8 +9,17 @@ import { readFileSync, existsSync, writeFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { homedir } from 'os'
-import { execSync } from 'child_process'
+import { exec, execSync } from 'child_process'
 import { createRequire } from 'module'
+
+// 异步 exec 封装，真正的非阻塞
+function execAsync(cmd: string, cwd?: string): Promise<{ stdout: string; stderr: string; error?: Error }> {
+  return new Promise((resolve) => {
+    exec(cmd, { cwd, encoding: 'utf8' }, (error, stdout, stderr) => {
+      resolve({ stdout: stdout || '', stderr: stderr || '', error: error || undefined })
+    })
+  })
+}
 
 // 导入三模块
 import { detectMissingDependencies } from './core/dependency-detector.js'
@@ -33,11 +42,11 @@ function shouldSkipNaudiodon(): boolean {
   return existsSync(getSkipFilePath())
 }
 
-function markNaudiodonSkipped(): void {
+async function markNaudiodonSkipped(): Promise<void> {
   try {
     const dir = join(homedir(), '.config', 'opencode')
     if (!existsSync(dir)) {
-      execSync('mkdir -p', { cwd: dir })
+      await execAsync('mkdir -p', dir)
     }
     writeFileSync(getSkipFilePath(), Date.now().toString(), 'utf-8')
   } catch {
@@ -60,10 +69,7 @@ async function rebuildNaudiodonDependency(dep: string): Promise<boolean> {
   const naudiodonPath = dirname(require.resolve('naudiodon'))
   try {
     notificationService.info(`正在编译 ${dep}...`, 'Ocosay 依赖', 4000)
-    execSync(`npm rebuild ${dep}`, {
-      cwd: naudiodonPath,
-      stdio: 'inherit'
-    })
+    await execAsync(`npm rebuild ${dep}`, naudiodonPath)
     logger.info(`${dep} rebuilt successfully`)
     return true
   } catch (err) {
@@ -101,10 +107,7 @@ async function fixNaudiodonDependencies(maxRetries = 5): Promise<boolean> {
         // 依赖不存在，尝试安装
         try {
           notificationService.info(`正在安装 ${dep}...`, 'Ocosay', 4000)
-          execSync(`npm install ${dep}`, {
-            cwd: naudiodonPath,
-            stdio: 'inherit'
-          })
+          await execAsync(`npm install ${dep}`, naudiodonPath)
           logger.info(`${dep} installed successfully`)
           anySuccess = true
         } catch (installErr) {
@@ -117,10 +120,7 @@ async function fixNaudiodonDependencies(maxRetries = 5): Promise<boolean> {
     if (!anySuccess || !(await verifyNaudiodonLoad())) {
       try {
         notificationService.info('正在重新编译 naudiodon...', 'Ocosay', 4000)
-        execSync('npm rebuild naudiodon', {
-          cwd: naudiodonPath,
-          stdio: 'inherit'
-        })
+        await execAsync('npm rebuild naudiodon', naudiodonPath)
         logger.info('naudiodon rebuilt')
         anySuccess = true
       } catch (err) {
@@ -160,10 +160,7 @@ async function ensureNaudiodonCompiled(): Promise<void> {
   try {
     const naudiodonPath = dirname(require.resolve('naudiodon'))
     logger.info({ naudiodonPath }, 'found naudiodon, rebuilding')
-    execSync('npm rebuild naudiodon', {
-      cwd: naudiodonPath,
-      stdio: 'inherit'
-    })
+    await execAsync('npm rebuild naudiodon', naudiodonPath)
     logger.info('naudiodon compiled, verifying...')
 
     // 验证模块能否加载
@@ -188,10 +185,7 @@ async function ensureNaudiodonCompiled(): Promise<void> {
       try {
         const naudiodonPath = dirname(require.resolve('naudiodon'))
         notificationService.info('正在重新编译 naudiodon...', 'Ocosay', 5000)
-        execSync('npm rebuild naudiodon', {
-          cwd: naudiodonPath,
-          stdio: 'inherit'
-        })
+        await execAsync('npm rebuild naudiodon', naudiodonPath)
         logger.info('naudiodon compiled successfully after PortAudio install')
 
         // 验证
@@ -258,20 +252,14 @@ async function tryCompileSpeaker(): Promise<TryCompileResult> {
 
   if (!isModuleInstalled(dep)) {
     try {
-      execSync('npm install speaker', {
-        cwd: opencodeNodeModules,
-        stdio: 'pipe'
-      })
+      await execAsync('npm install speaker', opencodeNodeModules)
     } catch {
       // 安装失败继续尝试编译
     }
   }
 
   try {
-    execSync('npm rebuild speaker', {
-      cwd: opencodeNodeModules,
-      stdio: 'pipe'
-    })
+    await execAsync('npm rebuild speaker', opencodeNodeModules)
     if (await verifyModuleLoad(dep)) {
       result.success = true
     }
@@ -338,10 +326,7 @@ async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
     logger.info('speaker installed but not loadable, rebuilding')
     notificationService.info('正在编译 speaker...', 'Ocosay 音频后端', 5000)
     try {
-      execSync('npm rebuild speaker', {
-        cwd: opencodeNodeModules,
-        stdio: 'inherit'
-      })
+      await execAsync('npm rebuild speaker', opencodeNodeModules)
       logger.info('speaker rebuilt')
     } catch (err) {
       logger.warn({ err }, 'speaker rebuild failed')
@@ -354,10 +339,7 @@ async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
     logger.info('speaker not found, installing')
     notificationService.info('正在安装 speaker...', 'Ocosay 音频后端', 5000)
     try {
-      execSync('npm install speaker', {
-        cwd: opencodeNodeModules,
-        stdio: 'inherit'
-      })
+      await execAsync('npm install speaker', opencodeNodeModules)
       logger.info('speaker installed')
     } catch (err) {
       logger.warn({ err }, 'speaker install failed')
@@ -374,10 +356,7 @@ async function ensureSpeakerCompiled(maxRetries = 5): Promise<void> {
     notificationService.info(`正在重新编译 speaker (${attempt + 1}/${maxRetries})...`, 'Ocosay', 3000)
 
     try {
-      execSync('npm rebuild speaker', {
-        cwd: opencodeNodeModules,
-        stdio: 'inherit'
-      })
+      await execAsync('npm rebuild speaker', opencodeNodeModules)
       logger.info('speaker rebuilt')
     } catch (err) {
       logger.warn({ err }, 'speaker rebuild failed')
@@ -411,10 +390,7 @@ async function ensurePlaySoundInstalled(): Promise<void> {
   notificationService.info('正在安装 play-sound...', 'Ocosay 音频后端', 5000)
 
   try {
-    execSync('npm install play-sound', {
-      cwd: opencodeNodeModules,
-      stdio: 'inherit'
-    })
+    await execAsync('npm install play-sound', opencodeNodeModules)
     logger.info('play-sound installed')
   } catch (err) {
     logger.warn({ err }, 'play-sound install failed')
@@ -505,7 +481,7 @@ async function installPortAudio(): Promise<{ success: boolean; message: string }
     notificationService.info(desc, '正在安装...', 5000)
 
     try {
-      execSync(cmd, { stdio: 'inherit' })
+      await execAsync(cmd)
       return true
     } catch (err: any) {
       const msg = err.message || ''
