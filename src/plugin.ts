@@ -447,7 +447,10 @@ async function ensurePlaySoundInstalled(): Promise<void> {
 }
 
 async function ensureOptionalDepsInstalled(): Promise<void> {
-  await ensureSpeakerCompiled()
+  // 异步版本，不阻塞启动
+  ensureSpeakerCompiledAsync().catch((err) => {
+    logger.warn({ err }, 'ensureSpeakerCompiledAsync failed')
+  })
   await ensurePlaySoundInstalled()
 }
 
