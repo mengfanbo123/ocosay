@@ -15,9 +15,9 @@ import { createRequire } from 'module'
 const logger = createModuleLogger('Plugin')
 const require = createRequire(import.meta.url)
 
-// 使用插件自身的路径来定位 OpenCode 的 node_modules
-const pluginPath = dirname(fileURLToPath(import.meta.url))
-const opencodeNodeModules = join(pluginPath, '..', 'node_modules')
+const opencodeBinPath = execSync('which opencode').toString().trim()
+const opencodeRoot = dirname(dirname(opencodeBinPath))
+const opencodeNodeModules = join(opencodeRoot, 'node_modules')
 const pluginRequire = createRequire(join(opencodeNodeModules, 'package.json'))
 
 function getSkipFilePath(): string {
