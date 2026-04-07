@@ -39,7 +39,7 @@ export class PlaySoundBackend implements AudioBackend {
     this.events = options.events
   }
   
-  start(filePath: string): void {
+  async start(filePath: string): Promise<void> {
     if (this._started) return
     
     if (!SAFE_PATH_REGEX.test(filePath)) {
@@ -52,8 +52,8 @@ export class PlaySoundBackend implements AudioBackend {
     
     this.events?.onStart?.()
     
-    // 动态导入 play-sound
-    this.playWithPlaySound(filePath)
+    // 等待 play-sound 播放完成
+    await this.playWithPlaySound(filePath)
   }
   
   private async playWithPlaySound(filePath: string): Promise<void> {

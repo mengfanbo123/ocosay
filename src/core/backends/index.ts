@@ -24,6 +24,7 @@ import { HowlerBackend } from './howler-backend'
 import { PlaySoundBackend } from './playsound-backend'
 import { SpeakerBackend } from './speaker-backend'
 import { logger } from '../../utils/logger'
+import { notificationService } from '../notification'
 
 function execCmd(cmd: string): { success: boolean; output: string } {
   try {
@@ -107,6 +108,11 @@ export function createBackend(type: BackendType = BackendType.AUTO, options: Bac
       }
     } catch (err) {
       logger.error({ err }, 'failed to initialize naudiodon backend')
+      notificationService.warning(
+        'naudiodon 初始化失败',
+        '将使用其他音频后端',
+        5000
+      )
     }
   }
    

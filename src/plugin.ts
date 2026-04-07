@@ -294,6 +294,7 @@ async function ensurePlaySoundInstalled(): Promise<void> {
   if (isModuleInstalled(dep)) {
     logger.info('play-sound already installed')
     if (await verifyModuleLoad(dep)) {
+      notificationService.success('play-sound 已就绪', '音频后端正常', 5000)
       return
     }
   }
