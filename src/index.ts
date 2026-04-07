@@ -7,7 +7,7 @@ import { StreamReader } from './core/stream-reader'
 import { StreamingSynthesizer } from './core/streaming-synthesizer'
 import { StreamPlayer } from './core/stream-player'
 import { logger } from './utils/logger'
-import { showToast } from './services/notification-service'
+
 
 export const pluginInfo = {
   name: 'ocosay',
@@ -92,7 +92,7 @@ function initializeStreamComponents(config: InitializeOptions): void {
   const playerEvents = {
     onStart: () => {},
     onEnd: () => {},
-    onProgress: (bytesWritten: number) => {},
+    onProgress: (_bytesWritten: number) => {},
     onError: (error: Error) => logger.error({ error }, 'stream player error'),
     onStop: () => {}
   }
@@ -213,7 +213,7 @@ export async function destroy(): Promise<void> {
   }
   
   if (streamPlayer) {
-    await streamPlayer.stop()
+    streamPlayer.stop()
     streamPlayer = undefined
   }
   

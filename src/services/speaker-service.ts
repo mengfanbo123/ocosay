@@ -1,5 +1,4 @@
 import { Speaker, getDefaultSpeaker, speak as coreSpeak, stop as coreStop, pause as corePause, resume as coreResume, listVoices as coreListVoices } from '../core/speaker'
-import { getProvider, listProviders } from '../providers/base'
 import { Voice, SpeakOptions } from '../core/types'
 import { logger } from '../utils/logger'
 
@@ -12,7 +11,7 @@ export interface speakerServiceOptions {
 export class SpeakerService {
   private speaker: Speaker
 
-  constructor(private options: speakerServiceOptions = {}) {
+  constructor(_options: speakerServiceOptions = {}) {
     this.speaker = getDefaultSpeaker()
   }
 

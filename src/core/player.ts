@@ -164,7 +164,7 @@ export class AudioPlayer extends EventEmitter implements Player {
    * 使用 AudioBackend 统一后端播放
    */
   private async playFile(filePath: string, _format: string): Promise<void> {
-    await this.backend.start(filePath)
+    await Promise.resolve(this.backend.start(filePath))
   }
 
   pause(): void {

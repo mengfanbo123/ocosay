@@ -53,22 +53,6 @@ export enum BackendType {
   AUTO = 'auto'
 }
 
-let naudiodonCache: any = null
-
-async function tryLoadNaudiodon(): Promise<any> {
-  if (naudiodonCache !== null) {
-    return naudiodonCache
-  }
-  try {
-    naudiodonCache = await import('naudiodon')
-    return naudiodonCache
-  } catch (err) {
-    logger.warn({ err }, 'failed to load naudiodon module')
-    naudiodonCache = false
-    return null
-  }
-}
-
 function isNaudiodonAvailable(): boolean {
   try {
     require.resolve('naudiodon')

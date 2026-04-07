@@ -106,7 +106,8 @@ export class SpeakerBackend implements AudioBackend {
   
   private stripWavHeader(chunk: Buffer): Buffer {
     // 跳过 44 字节的 WAV 头
-    return chunk.slice(44)
+    // 使用 subarray 替代 deprecated 的 slice
+    return chunk.subarray(44) as Buffer
   }
   
   private createSpeaker(): void {

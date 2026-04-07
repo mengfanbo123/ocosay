@@ -47,7 +47,6 @@ export class MiniMaxProvider extends BaseTTSProvider {
   private config: MiniMaxConfig
   private httpClient: AxiosInstance
   private wsConnection?: WebSocket
-  private currentAudioData: Buffer[] = []
   private audioFormat: 'mp3' | 'wav' | 'flac' = 'mp3'
 
   constructor(config: MiniMaxConfig) {

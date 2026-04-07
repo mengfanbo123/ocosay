@@ -8,7 +8,7 @@
  */
 
 import { EventEmitter } from 'events'
-import { StreamState, TTSError, TTSErrorCode } from './types'
+import { StreamState, TTSError } from './types'
 import { createModuleLogger } from '../utils/logger'
 
 const logger = createModuleLogger('StreamReader')

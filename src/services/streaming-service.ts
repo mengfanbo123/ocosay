@@ -14,7 +14,7 @@ import { EventEmitter } from 'events'
 import { getProvider } from '../providers/base'
 import { TTSError, TTSErrorCode, AudioResult } from '../core/types'
 import { StreamPlayer, StreamPlayerOptions } from '../core/stream-player'
-import { BackendType, createBackend } from '../core/backends'
+import { BackendType } from '../core/backends'
 import { logger } from '../utils/logger'
 
 export interface StreamingServiceOptions {
@@ -147,7 +147,7 @@ export class StreamingService extends EventEmitter {
 
       // 初始化播放器
       const player = this.initPlayer()
-      player.start()
+      await player.start()
       this._isActive = true
       this._bytesWritten = 0
 
@@ -181,7 +181,7 @@ export class StreamingService extends EventEmitter {
       await this.streamAudioChunks(result.audioData, player)
     } else if (Buffer.isBuffer(result.audioData)) {
       // 非流式数据：直接写入
-      player.write(result.audioData)
+      await player.write(result.audioData)
       player.end()
     }
   }
@@ -202,7 +202,7 @@ export class StreamingService extends EventEmitter {
 
         if (value) {
           const chunk = Buffer.isBuffer(value) ? value : Buffer.from(value)
-          player.write(chunk)
+          await player.write(chunk)
         }
       }
     } finally {

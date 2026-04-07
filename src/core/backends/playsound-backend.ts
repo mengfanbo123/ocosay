@@ -9,6 +9,9 @@ import { AudioBackend, AudioBackendEvents, BackendOptions } from './base'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { writeFileSync, unlinkSync, existsSync } from 'fs'
+import { promisify } from 'util'
+
+const execFileAsync = promisify(execFile)
 
 // 白名单：只允许特定路径格式（禁止 - 防止命令注入）
 const SAFE_PATH_REGEX = /^[\w\/\.]+$/
@@ -56,63 +59,90 @@ export class PlaySoundBackend implements AudioBackend {
     await this.playWithPlaySound(filePath)
   }
   
-  private async playWithPlaySound(filePath: string): Promise<void> {
-    try {
+  private playWithPlaySound(filePath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
       // 异步导入 play-sound
-      const play = (await import('play-sound')).default
-      
-      // 配置播放器选项
-      const opts: any = {
-        players: ['ffplay', 'aplay', 'mpg123', 'afplay'] // 优先级
-      }
-      
-      // 对于 ffplay，使用无声模式
-      if (process.platform === 'linux') {
-        // ffplay 无声卡播放参数
-        this.player = execFile('ffplay', [
-          '-nodisp',      // 不显示窗口
-          '-autoexit',    // 播放完自动退出
-          '-loglevel', 'error', // 减少日志输出
-          filePath
-        ], (error) => {
-          if (this._stopped) return
-          
-          if (error) {
-            this.handleError(error)
-            return
-          }
-          
-          this._started = false
-          this.events?.onEnd?.()
-        })
-      } else {
-        // 使用 play-sound 的默认行为
-        const audio = play as any
-        const p = audio.play(filePath, (err: Error | null) => {
-          if (this._stopped) return
-          
-          if (err) {
-            this.handleError(err)
-            return
-          }
-          
-          this._started = false
-          this.events?.onEnd?.()
-        })
+      import('play-sound').then((playModule) => {
+        const play = playModule.default
         
-        if (p && p.kill) {
-          this.player = p
+        // 对于 ffplay，使用无声模式
+        if (process.platform === 'linux') {
+          // ffplay 无声卡播放参数
+          execFileAsync('ffplay', [
+            '-nodisp',      // 不显示窗口
+            '-autoexit',    // 播放完自动退出
+            '-loglevel', 'error', // 减少日志输出
+            filePath
+          ]).then(() => {
+            if (this._stopped) {
+              resolve()
+              return
+            }
+            this._started = false
+            this.events?.onEnd?.()
+            resolve()
+          }).catch((error) => {
+            if (this._stopped) {
+              resolve()
+              return
+            }
+            this._started = false
+            this.handleError(error)
+            reject(error)
+          })
+        } else {
+          // 使用 play-sound 的 Promise API
+          // play-sound 的类型定义不完善，需要用 any 访问 .play() 方法
+          const playerSound = play as any
+          const p = playerSound.play(filePath)
+          
+          if (p && p.then) {
+            // 返回 Promise 的情况
+            p.then(() => {
+              if (this._stopped) {
+                resolve()
+                return
+              }
+              this._started = false
+              this.events?.onEnd?.()
+              resolve()
+            }).catch((err: Error) => {
+              if (this._stopped) {
+                resolve()
+                return
+              }
+              this._started = false
+              this.handleError(err)
+              reject(err)
+            })
+          } else if (p && p.kill) {
+            // 返回 ChildProcess 的情况
+            this.player = p
+            p.on('error', (error: Error) => {
+              this.handleError(error)
+              reject(error)
+            })
+            p.on('close', () => {
+              if (this._stopped) {
+                resolve()
+                return
+              }
+              this._started = false
+              this.events?.onEnd?.()
+              resolve()
+            })
+          } else {
+            // 无法识别的返回类型，直接 resolve
+            resolve()
+          }
         }
-      }
-      
-      if (this.player) {
-        this.player.on('error', (error) => {
-          this.handleError(error)
-        })
-      }
-    } catch (err) {
-      this.handleError(err instanceof Error ? err : new Error(String(err)))
-    }
+      }).catch((err) => {
+        const error = err instanceof Error ? err : new Error(String(err))
+        error.message = `play-sound load failed: ${error.message}`
+        this.handleError(error)
+        reject(error)
+      })
+    })
   }
   
   write(chunk: Buffer): void {

@@ -21,10 +21,7 @@ function execAsync(cmd: string, cwd?: string): Promise<{ stdout: string; stderr:
   })
 }
 
-// 导入三模块
-import { detectMissingDependencies } from './core/dependency-detector.js'
-import { mapHeadersToPackages, detectPlatform } from './core/dependency-mapper.js'
-import { installSystemPackages } from './core/dependency-installer.js'
+
 
 const logger = createModuleLogger('Plugin')
 const require = createRequire(import.meta.url)
@@ -269,21 +266,13 @@ async function verifyModuleLoad(dep: string): Promise<boolean> {
   }
 }
 
-interface TryCompileResult {
-  success: boolean
-  stderr: string
-}
-
-
-
 async function ensureSpeakerInstalledAsync(): Promise<void> {
   await ensurePlaySoundInstalled()
 }
 
 async function initAsync(): Promise<void> {
-  setTimeout(async () => {
-    await ensureSpeakerInstalledAsync()
-  }, 100)
+  await new Promise(resolve => setTimeout(resolve, 100))
+  await ensureSpeakerInstalledAsync()
 }
 
 
@@ -649,6 +638,55 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
 
   const config = loadOrCreateConfig()
 
+  /**
+   * 收集环境信息用于在 toast 中显示
+   */
+  function collectEnvironmentInfo(): string {
+    const lines: string[] = []
+    lines.push(`Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`)
+
+    let naudiodonOk = false
+    try {
+      pluginRequire.resolve('naudiodon')
+      naudiodonOk = true
+    } catch {
+      naudiodonOk = false
+    }
+
+    const playSoundOk = isModuleInstalled('play-sound')
+
+    const platform = process.platform
+    let backend = 'unknown'
+    if (naudiodonOk) {
+      backend = 'naudiodon'
+    } else if (platform === 'linux') {
+      if (checkAlsa()) {
+        backend = 'aplay'
+      } else if (checkFFplay()) {
+        backend = 'ffplay'
+      } else {
+        backend = 'howler'
+      }
+    } else if (platform === 'darwin') {
+      backend = 'afplay'
+    } else if (platform === 'win32') {
+      backend = 'powershell'
+    } else {
+      backend = 'howler'
+    }
+
+    const ffplayOk = checkFFplay()
+    const alsaOk = checkAlsa()
+
+    lines.push(`naudiodon: ${naudiodonOk ? '✓' : '✗'}`)
+    lines.push(`play-sound: ${playSoundOk ? '✓' : '✗'}`)
+    lines.push(`backend: ${backend}`)
+    lines.push(`ffplay: ${ffplayOk ? '✓' : '✗'}`)
+    lines.push(`alsa: ${alsaOk ? '✓' : '✗'}`)
+
+    return lines.join('\n')
+  }
+
   try {
     await initialize({
       autoRead: config.autoRead,
@@ -665,7 +703,7 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
     logger.error({ error: initError }, 'initialization failed')
   }
 
-  initAsync()
+  await initAsync()
 
   await ensureNaudiodonCompiled()
   await ensureOptionalDepsInstalled()
@@ -674,16 +712,17 @@ const server: Plugin = (async (input: PluginInput, _options?: PluginOptions) => 
   await checkAudioEnvironmentForBackend()
 
   setTimeout(() => {
+    // 收集环境信息用于 toast 显示（移到此处确保状态最新）
+    const envInfo = collectEnvironmentInfo()
     if (initError) {
       notificationService.error(
-        `Ocosay v${pluginVersion} Init Failed`,
-        'Please check your config file',
+        `Ocosay v${pluginVersion} Init Failed\nPlease check your config file`,
         8000
       )
     } else {
-      notificationService.success(
+      notificationService.showSpinnerToast(
         `Ocosay v${pluginVersion} Ready`,
-        `Auto-read: ${config.autoRead ? 'ON' : 'OFF'}`,
+        envInfo,
         5000
       )
     }

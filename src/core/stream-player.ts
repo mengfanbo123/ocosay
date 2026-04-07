@@ -42,6 +42,7 @@ export class StreamPlayer extends EventEmitter {
   private _started = false
   private _paused = false
   private _stopped = false
+  private _starting = false
   private format: 'mp3' | 'wav' | 'flac' = 'mp3'
   private events?: StreamPlayerEvents
 
@@ -92,7 +93,7 @@ export class StreamPlayer extends EventEmitter {
    * 开始播放
    * 初始化后端，准备接收音频数据
    */
-  start(): void {
+  async start(): Promise<void> {
     if (this._started) {
       return
     }
@@ -102,8 +103,8 @@ export class StreamPlayer extends EventEmitter {
       return
     }
 
-    // 初始化后端
-    this.backend.start('')
+    // 初始化后端（playsound-backend 是异步的，需 await）
+    await Promise.resolve(this.backend.start(''))
     
     this._started = true
     this._stopped = false
@@ -115,20 +116,30 @@ export class StreamPlayer extends EventEmitter {
    * 写入音频数据块（边收边播）
    * 如果尚未 start()，会自动调用
    */
-  write(chunk: Buffer): void {
+  async write(chunk: Buffer): Promise<void> {
     // 如果已停止，直接忽略
     if (this._stopped) {
       return
     }
 
-    // 如果未启动，自动启动
+    // 如果未启动，防止竞态条件并自动启动
     if (!this._started) {
-      this.start()
+      // 防止并发启动
+      while (this._starting) {
+        await new Promise(resolve => setTimeout(resolve, 10))
+      }
+      this._starting = true
+      try {
+        await this.start()
+      } finally {
+        this._starting = false
+      }
     }
 
     // 写入数据到后端
     if (this.backend) {
-      this.backend.write(chunk)
+      // backend.write() 可能返回 Promise 或 void，用 Promise.resolve 处理
+      await Promise.resolve(this.backend.write(chunk))
       this._bytesWritten += chunk.length
       this.events?.onProgress?.(this._bytesWritten)
       this.emit('progress', this._bytesWritten)

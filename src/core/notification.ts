@@ -6,11 +6,13 @@ const logger = createModuleLogger('NotificationService')
 export type ToastVariant = 'success' | 'error' | 'info' | 'warning'
 
 export interface ToastOptions {
-  title: string
+  title?: string
   message: string
   variant?: ToastVariant
   duration?: number
 }
+
+const SISYPHUS_SPINNER = ['·', '•', '●', '○', '◌', '◦', ' ']
 
 /**
  * NotificationService - 统一 Toast 通知管理
@@ -28,11 +30,12 @@ class NotificationService {
   }
 
   showToast(options: ToastOptions): boolean {
-    const { title, message, variant = 'info', duration = 5000 } = options
+    const title = options.title || this.getTitleForVariant(options.variant || 'info')
+    const { message, variant = 'info', duration = 5000 } = options
 
     if (!this.tui) {
       logger.debug({ title }, 'tui not ready, queueing toast')
-      this.pendingToasts.push(options)
+      this.pendingToasts.push({ ...options, title })
       this.scheduleRetry()
       return false
     }
@@ -52,7 +55,7 @@ class NotificationService {
     } catch (err) {
       // 参照 DCP：捕获异常但不抛出
       logger.warn({ err, title }, 'toast call failed, queueing for retry')
-      this.pendingToasts.push(options)
+      this.pendingToasts.push({ ...options, title })
       this.scheduleRetry()
       return false
     }
@@ -84,20 +87,87 @@ class NotificationService {
     }
   }
 
-  success(title: string, message: string, duration?: number): boolean {
-    return this.showToast({ title, message, variant: 'success', duration })
+  success(message: string, duration?: number): boolean
+  success(title: string, message: string, duration?: number): boolean
+  success(titleOrMessage: string, messageOrDuration?: string | number, duration?: number): boolean {
+    if (typeof messageOrDuration === 'string') {
+      // 3参数: success(title, message, duration)
+      return this.showToast({ title: titleOrMessage, message: messageOrDuration, variant: 'success', duration })
+    }
+    // 2参数: success(message, duration) 或 success(message)
+    return this.showToast({ message: titleOrMessage, variant: 'success', duration: messageOrDuration })
   }
 
-  error(title: string, message: string, duration?: number): boolean {
-    return this.showToast({ title, message, variant: 'error', duration })
+  error(message: string, duration?: number): boolean
+  error(title: string, message: string, duration?: number): boolean
+  error(titleOrMessage: string, messageOrDuration?: string | number, duration?: number): boolean {
+    if (typeof messageOrDuration === 'string') {
+      return this.showToast({ title: titleOrMessage, message: messageOrDuration, variant: 'error', duration })
+    }
+    return this.showToast({ message: titleOrMessage, variant: 'error', duration: messageOrDuration || 8000 })
   }
 
-  info(title: string, message: string, duration?: number): boolean {
-    return this.showToast({ title, message, variant: 'info', duration })
+  info(message: string, duration?: number): boolean
+  info(title: string, message: string, duration?: number): boolean
+  info(titleOrMessage: string, messageOrDuration?: string | number, duration?: number): boolean {
+    if (typeof messageOrDuration === 'string') {
+      return this.showToast({ title: titleOrMessage, message: messageOrDuration, variant: 'info', duration })
+    }
+    return this.showToast({ message: titleOrMessage, variant: 'info', duration: messageOrDuration })
   }
 
-  warning(title: string, message: string, duration?: number): boolean {
-    return this.showToast({ title, message, variant: 'warning', duration })
+  warning(message: string, duration?: number): boolean
+  warning(title: string, message: string, duration?: number): boolean
+  warning(titleOrMessage: string, messageOrDuration?: string | number, duration?: number): boolean {
+    if (typeof messageOrDuration === 'string') {
+      return this.showToast({ title: titleOrMessage, message: messageOrDuration, variant: 'warning', duration })
+    }
+    return this.showToast({ message: titleOrMessage, variant: 'warning', duration: messageOrDuration })
+  }
+
+  async showSpinnerToast(
+    title: string,
+    message: string,
+    duration: number = 2000
+  ): Promise<void> {
+    const frameInterval = 100
+    const totalFrames = Math.ceil(duration / frameInterval)
+
+    for (let i = 0; i < totalFrames; i++) {
+      const spinner = SISYPHUS_SPINNER[i % SISYPHUS_SPINNER.length]
+      const toastDuration = Math.min(frameInterval + 50, duration - i * frameInterval)
+
+      if (toastDuration <= 0) break
+
+      if (this.tui?.showToast) {
+        try {
+          await this.tui.showToast({
+            body: {
+              title: `${spinner} ${title}`,
+              message,
+              variant: 'info' as ToastVariant,
+              duration: toastDuration
+            },
+          })
+        } catch (err) {
+          logger.warn({ err }, 'showSpinnerToast failed')
+        }
+      }
+
+      if (i < totalFrames - 1) {
+        await new Promise((resolve) => setTimeout(resolve, frameInterval))
+      }
+    }
+  }
+
+  private getTitleForVariant(variant: ToastVariant): string {
+    const titles: Record<ToastVariant, string> = {
+      success: 'Success',
+      error: 'Error',
+      warning: 'Warning',
+      info: 'Info'
+    }
+    return titles[variant]
   }
 }
 

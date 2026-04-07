@@ -4,7 +4,7 @@
  */
 
 import { speak, stop, pause, resume, listVoices, getDefaultSpeakerService } from '../services/speaker-service'
-import { stream, streamStop, getDefaultStreamingService } from '../services/streaming-service'
+import { stream, getDefaultStreamingService } from '../services/streaming-service'
 import { TTSError, TTSErrorCode } from '../core/types'
 import { createModuleLogger } from '../utils/logger'
 

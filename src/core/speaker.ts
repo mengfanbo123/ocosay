@@ -9,7 +9,6 @@ import {
   TTSError,
   TTSErrorCode,
   SpeakOptions,
-  AudioResult,
   Voice,
   TTSEvent,
   SynthesisModel

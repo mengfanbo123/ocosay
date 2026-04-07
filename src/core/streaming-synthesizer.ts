@@ -11,7 +11,7 @@
  */
 
 import { EventEmitter } from 'events'
-import { TTSProvider, TTSError, TTSErrorCode, StreamingSynthesizerOptions, AudioResult } from './types'
+import { TTSError, TTSErrorCode, StreamingSynthesizerOptions, AudioResult } from './types'
 import { logger } from '../utils/logger'
 
 export interface StreamingSynthesizerEvents {
