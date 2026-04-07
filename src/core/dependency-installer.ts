@@ -103,6 +103,7 @@ export async function installSystemPackages(
         execSync('sudo apt-get update', {
           timeout: 120000,
           encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe'],
         })
         silentLog('info', 'apt-get update 完成')
       } catch (updateErr) {
@@ -115,6 +116,7 @@ export async function installSystemPackages(
     const output = execSync(fullCommand, {
       timeout: 300000,
       encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
     })
 
     silentLog('info', `安装输出: ${output.substring(0, 500)}`)
