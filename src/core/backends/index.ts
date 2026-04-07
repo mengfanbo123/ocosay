@@ -93,7 +93,8 @@ export function createBackend(type: BackendType = BackendType.AUTO, options: Bac
     return createBackendByType(type, options)
   }
    
-  if (isNaudiodonAvailable()) {
+  // WSL 环境下 naudiodon 可能无法工作（无法访问 Windows 音频设备），跳过
+  if (!isWSL() && isNaudiodonAvailable()) {
     try {
       const naudiodon = require('naudiodon')
       if (naudiodon) {
